@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PeekCSS</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <h1>PeekCSS</h1>
+        <p id="status">Click an element on the page to inspect…</p>
+      </header>
+      <section id="panel" hidden>
+        <div class="block">
+          <h2>Selector</h2>
+          <div class="selector">
+            <code id="sel-tag"></code><code id="sel-id"></code><code id="sel-classes"></code>
+          </div>
+          <div class="row"><span class="key">size</span><span id="dim" class="val"></span></div>
+        </div>
+        <div class="block"><h2>Typography</h2><div id="typo"></div></div>
+        <div class="block"><h2>Box</h2><div id="box"></div></div>
+        <div class="block"><h2>Background</h2><div id="bg"></div></div>
+        <div class="block"><h2>Layout</h2><div id="layout"></div></div>
+        <div class="block"><h2>Effects</h2><div id="effects"></div></div>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
