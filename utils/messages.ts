@@ -11,7 +11,18 @@ export interface InspectionData {
     letterSpacing: string;
     color: string;
   };
-  box: { padding: string; margin: string; border: string; borderRadius: string };
+  box: {
+    paddingTop: string;
+    paddingRight: string;
+    paddingBottom: string;
+    paddingLeft: string;
+    marginTop: string;
+    marginRight: string;
+    marginBottom: string;
+    marginLeft: string;
+    border: string;
+    borderRadius: string;
+  };
   background: { color: string; image: string };
   layout: { display: string; position: string };
   effects: { boxShadow: string; opacity: string };

@@ -94,9 +94,8 @@ function render(d: InspectionData) {
     ['letter-spacing', d.typography.letterSpacing],
     ['color', d.typography.color, true],
   ]);
+  renderBoxModel(d);
   rows('box', [
-    ['padding', d.box.padding],
-    ['margin', d.box.margin],
     ['border', d.box.border],
     ['border-radius', d.box.borderRadius],
   ]);
@@ -117,6 +116,46 @@ function render(d: InspectionData) {
 function setText(id: string, text: string) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
+}
+
+function renderBoxModel(d: InspectionData) {
+  const container = document.getElementById('box-model')!;
+  container.replaceChildren();
+
+  const strip = (v: string) => parseFloat(v) || 0;
+
+  const margin = {
+    top: strip(d.box.marginTop),
+    right: strip(d.box.marginRight),
+    bottom: strip(d.box.marginBottom),
+    left: strip(d.box.marginLeft),
+  };
+  const padding = {
+    top: strip(d.box.paddingTop),
+    right: strip(d.box.paddingRight),
+    bottom: strip(d.box.paddingBottom),
+    left: strip(d.box.paddingLeft),
+  };
+  const w = d.dimensions.width;
+  const h = d.dimensions.height;
+
+  container.innerHTML = `
+    <div class="bm-margin">
+      <span class="bm-label">margin</span>
+      <span class="bm-top">${margin.top}</span>
+      <span class="bm-right">${margin.right}</span>
+      <span class="bm-bottom">${margin.bottom}</span>
+      <span class="bm-left">${margin.left}</span>
+      <div class="bm-padding">
+        <span class="bm-label">padding</span>
+        <span class="bm-top">${padding.top}</span>
+        <span class="bm-right">${padding.right}</span>
+        <span class="bm-bottom">${padding.bottom}</span>
+        <span class="bm-left">${padding.left}</span>
+        <div class="bm-content">${w} × ${h}</div>
+      </div>
+    </div>
+  `;
 }
 
 function rows(containerId: string, items: Array<[string, string, boolean?]>) {
