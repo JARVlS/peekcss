@@ -3,13 +3,29 @@ import {
   INSPECTOR_PORT,
   type InspectionData,
   type InspectorMessage,
+  type SidepanelMessage,
 } from '@/utils/messages';
 
 const statusEl = document.getElementById('status')!;
 const panelEl = document.getElementById('panel') as HTMLElement;
+const toggleBtn = document.getElementById('toggle')!;
+const iconOn = document.getElementById('toggle-icon-on')!;
+const iconOff = document.getElementById('toggle-icon-off')!;
 
 let port: ReturnType<typeof browser.tabs.connect> | undefined;
-let generation = 0; // guards against overlapping connect() calls
+let generation = 0;
+let inspectorActive = true;
+
+toggleBtn.addEventListener('click', () => {
+  inspectorActive = !inspectorActive;
+  toggleBtn.classList.toggle('active', inspectorActive);
+  iconOn.style.display = inspectorActive ? '' : 'none';
+  iconOff.style.display = inspectorActive ? 'none' : '';
+  if (port) {
+    const msg: SidepanelMessage = { kind: 'set-active', active: inspectorActive };
+    port.postMessage(msg);
+  }
+});
 
 async function connect() {
   const myGen = ++generation;
@@ -42,6 +58,12 @@ async function connect() {
     if (port) statusEl.textContent = 'Disconnected.';
     port = undefined;
   });
+
+  // Sync the current toggle state to the newly connected content script
+  if (!inspectorActive) {
+    const msg: SidepanelMessage = { kind: 'set-active', active: false };
+    port.postMessage(msg);
+  }
 }
 
 // Initial connection + react to tab switches and full page loads

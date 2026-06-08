@@ -29,6 +29,34 @@ header h1 {
   font-weight: 600;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.toggle:hover {
+  border-color: var(--muted);
+}
+
+.toggle.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 header p {
   margin: 4px 0 12px;
   color: var(--muted);

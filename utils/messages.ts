@@ -19,6 +19,11 @@ export interface InspectionData {
 
 // Discriminated union → adding a new message kind forces both sides
 // to handle it. Keeps stringly-typed bugs out.
+
+// Content script → Sidepanel
 export type InspectorMessage =
   | { kind: 'update'; data: InspectionData }
   | { kind: 'cleared' };
+
+// Sidepanel → Content script
+export type SidepanelMessage = { kind: 'set-active'; active: boolean };

@@ -3,6 +3,7 @@ import {
   INSPECTOR_PORT,
   type InspectionData,
   type InspectorMessage,
+  type SidepanelMessage,
 } from '@/utils/messages';
 
 export default defineContentScript({
@@ -13,11 +14,13 @@ export default defineContentScript({
 
       const highlight = createHighlight();
       let hovered: Element | null = null;
+      let active = true;
 
       const isOurs = (el: Element | null) =>
         !!el && (el === highlight.host || highlight.host.contains(el));
 
       const onMouseOver = (e: MouseEvent) => {
+        if (!active) return;
         const target = e.target as Element | null;
         if (!target || isOurs(target) || target === hovered) return;
         hovered = target;
@@ -25,6 +28,7 @@ export default defineContentScript({
       };
 
       const onMouseDown = (e: MouseEvent) => {
+        if (!active) return;
         if (isOurs(e.target as Element)) return;
         e.preventDefault();
         e.stopPropagation();
@@ -32,6 +36,7 @@ export default defineContentScript({
       };
 
       const onClick = (e: MouseEvent) => {
+        if (!active) return;
         const target = e.target as Element | null;
         if (!target || isOurs(target)) return;
         e.preventDefault();
@@ -42,7 +47,7 @@ export default defineContentScript({
       };
 
       const onScrollOrResize = () => {
-        if (hovered) highlight.setTarget(hovered);
+        if (active && hovered) highlight.setTarget(hovered);
       };
 
       document.addEventListener('mouseover', onMouseOver, { capture: true });
@@ -55,6 +60,21 @@ export default defineContentScript({
       const prevBodyCursor = document.body.style.cursor;
       document.documentElement.style.cursor = 'crosshair';
       document.body.style.cursor = 'crosshair';
+
+      port.onMessage.addListener((msg: SidepanelMessage) => {
+        if (msg.kind === 'set-active') {
+          active = msg.active;
+          if (active) {
+            document.documentElement.style.cursor = 'crosshair';
+            document.body.style.cursor = 'crosshair';
+          } else {
+            highlight.hide();
+            hovered = null;
+            document.documentElement.style.cursor = prevHtmlCursor;
+            document.body.style.cursor = prevBodyCursor;
+          }
+        }
+      });
 
       port.onDisconnect.addListener(() => {
         document.removeEventListener('mouseover', onMouseOver, { capture: true });
@@ -99,6 +119,9 @@ function createHighlight() {
       box.style.top = `${r.top}px`;
       box.style.width = `${r.width}px`;
       box.style.height = `${r.height}px`;
+    },
+    hide() {
+      box.style.display = 'none';
     },
     destroy() {
       host.remove();
