@@ -109,6 +109,20 @@ header p {
   align-items: center;
   gap: 6px;
   justify-content: flex-end;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.row .val:hover {
+  background: rgba(138, 180, 255, 0.1);
+  color: var(--accent);
+}
+
+.row .val.copied {
+  color: #6ee7a0;
 }
 
 .swatch {

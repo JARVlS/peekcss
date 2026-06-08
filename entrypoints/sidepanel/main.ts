@@ -80,7 +80,11 @@ function render(d: InspectionData) {
   setText('sel-tag', d.selector.tag);
   setText('sel-id', d.selector.id ? `#${d.selector.id}` : '');
   setText('sel-classes', d.selector.classes.map((c) => `.${c}`).join(''));
-  setText('dim', `${d.dimensions.width} × ${d.dimensions.height}`);
+
+  const dimText = `${d.dimensions.width} × ${d.dimensions.height}`;
+  const dimEl = document.getElementById('dim')!;
+  dimEl.textContent = dimText;
+  dimEl.onclick = () => copyValue(dimEl, dimText);
 
   rows('typo', [
     ['font-family', d.typography.fontFamily],
@@ -128,6 +132,9 @@ function rows(containerId: string, items: Array<[string, string, boolean?]>) {
     const v = document.createElement('span');
     v.className = 'val';
     v.textContent = val || '—';
+    if (val) {
+      v.addEventListener('click', () => copyValue(v, val));
+    }
     if (isColor && val) {
       const sw = document.createElement('span');
       sw.className = 'swatch';
@@ -137,4 +144,11 @@ function rows(containerId: string, items: Array<[string, string, boolean?]>) {
     row.append(k, v);
     c.append(row);
   }
+}
+
+function copyValue(el: HTMLElement, text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    el.classList.add('copied');
+    setTimeout(() => el.classList.remove('copied'), 600);
+  });
 }
