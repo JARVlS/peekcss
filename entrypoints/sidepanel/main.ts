@@ -11,11 +11,15 @@ const panelEl = document.getElementById('panel') as HTMLElement;
 const toggleBtn = document.getElementById('toggle')!;
 const iconOn = document.getElementById('toggle-icon-on')!;
 const iconOff = document.getElementById('toggle-icon-off')!;
+const popupToggleBtn = document.getElementById('popup-toggle')!;
+const popupIconOn = document.getElementById('popup-icon-on')!;
+const popupIconOff = document.getElementById('popup-icon-off')!;
 const copyAllBtn = document.getElementById('copy-all')!;
 
 let port: ReturnType<typeof browser.tabs.connect> | undefined;
 let generation = 0;
 let inspectorActive = true;
+let popupEnabled = false;
 
 // Stores current CSS items per section for copy-section buttons
 const sectionData: Record<string, Array<[string, string]>> = {};
@@ -27,6 +31,17 @@ toggleBtn.addEventListener('click', () => {
   iconOff.style.display = inspectorActive ? 'none' : '';
   if (port) {
     const msg: SidepanelMessage = { kind: 'set-active', active: inspectorActive };
+    port.postMessage(msg);
+  }
+});
+
+popupToggleBtn.addEventListener('click', () => {
+  popupEnabled = !popupEnabled;
+  popupToggleBtn.classList.toggle('active', popupEnabled);
+  popupIconOn.style.display = popupEnabled ? '' : 'none';
+  popupIconOff.style.display = popupEnabled ? 'none' : '';
+  if (port) {
+    const msg: SidepanelMessage = { kind: 'set-popup', enabled: popupEnabled };
     port.postMessage(msg);
   }
 });
@@ -84,6 +99,10 @@ async function connect() {
 
   if (!inspectorActive) {
     const msg: SidepanelMessage = { kind: 'set-active', active: false };
+    port.postMessage(msg);
+  }
+  if (popupEnabled) {
+    const msg: SidepanelMessage = { kind: 'set-popup', enabled: true };
     port.postMessage(msg);
   }
 }

@@ -35,6 +35,12 @@ header h1 {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .toggle {
   background: none;
   border: 1px solid var(--border);

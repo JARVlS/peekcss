@@ -10,25 +10,39 @@
       <header>
         <div class="header-row">
           <h1>PeekCSS</h1>
-          <button id="toggle" class="toggle active" title="Toggle inspector">
-            <svg id="toggle-icon-on" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="8" cy="8" r="2.5" fill="currentColor"/>
-              <line x1="8" y1="0.5" x2="8" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <line x1="8" y1="13" x2="8" y2="15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <line x1="0.5" y1="8" x2="3" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <line x1="13" y1="8" x2="15.5" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-            <svg id="toggle-icon-off" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <div class="header-actions">
+            <button id="popup-toggle" class="toggle" title="Toggle hover popup">
+              <svg id="popup-icon-on" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="4" y1="5.5" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="4" y1="8.5" x2="8.5" y2="8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M6.5 11.5 L8.5 14 L10 11.5 Z" fill="currentColor"/>
+              </svg>
+              <svg id="popup-icon-off" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none">
+                <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="2.5" y1="2.5" x2="13.5" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="toggle" class="toggle active" title="Toggle inspector">
+              <svg id="toggle-icon-on" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="8" cy="8" r="2.5" fill="currentColor"/>
+                <line x1="8" y1="0.5" x2="8" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="8" y1="13" x2="8" y2="15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="0.5" y1="8" x2="3" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="13" y1="8" x2="15.5" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <svg id="toggle-icon-off" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <p id="status">Click an element on the page to inspect…</p>
       </header>
       <section id="panel" hidden>
-        <button id="copy-all" class="copy-btn copy-all" title="Copy all CSS">Copy All</button>
+        <button id="copy-all" class="copy-btn copy-all" title="Copy all CSS">Copy All CSS</button>
         <div class="block">
           <h2>Selector</h2>
           <div class="selector">

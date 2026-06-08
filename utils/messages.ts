@@ -37,4 +37,6 @@ export type InspectorMessage =
   | { kind: 'cleared' };
 
 // Sidepanel → Content script
-export type SidepanelMessage = { kind: 'set-active'; active: boolean };
+export type SidepanelMessage =
+  | { kind: 'set-active'; active: boolean }
+  | { kind: 'set-popup'; enabled: boolean };
