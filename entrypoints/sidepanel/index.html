@@ -28,6 +28,7 @@
         <p id="status">Click an element on the page to inspect…</p>
       </header>
       <section id="panel" hidden>
+        <button id="copy-all" class="copy-btn copy-all" title="Copy all CSS">Copy All</button>
         <div class="block">
           <h2>Selector</h2>
           <div class="selector">
@@ -35,11 +36,26 @@
           </div>
           <div class="row"><span class="key">size</span><span id="dim" class="val"></span></div>
         </div>
-        <div class="block"><h2>Typography</h2><div id="typo"></div></div>
-        <div class="block"><h2>Box</h2><div id="box-model"></div><div id="box"></div></div>
-        <div class="block"><h2>Background</h2><div id="bg"></div></div>
-        <div class="block"><h2>Layout</h2><div id="layout"></div></div>
-        <div class="block"><h2>Effects</h2><div id="effects"></div></div>
+        <div class="block">
+          <div class="block-header"><h2>Typography</h2><button class="copy-btn copy-section" data-section="typo" title="Copy typography CSS">Copy</button></div>
+          <div id="typo"></div>
+        </div>
+        <div class="block">
+          <div class="block-header"><h2>Box</h2><button class="copy-btn copy-section" data-section="box" title="Copy box CSS">Copy</button></div>
+          <div id="box-model"></div><div id="box"></div>
+        </div>
+        <div class="block">
+          <div class="block-header"><h2>Background</h2><button class="copy-btn copy-section" data-section="bg" title="Copy background CSS">Copy</button></div>
+          <div id="bg"></div>
+        </div>
+        <div class="block">
+          <div class="block-header"><h2>Layout</h2><button class="copy-btn copy-section" data-section="layout" title="Copy layout CSS">Copy</button></div>
+          <div id="layout"></div>
+        </div>
+        <div class="block">
+          <div class="block-header"><h2>Effects</h2><button class="copy-btn copy-section" data-section="effects" title="Copy effects CSS">Copy</button></div>
+          <div id="effects"></div>
+        </div>
       </section>
     </main>
     <script type="module" src="./main.ts"></script>

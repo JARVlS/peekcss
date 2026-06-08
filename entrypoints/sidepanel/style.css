@@ -147,6 +147,8 @@ header p {
   border: 1px dashed;
   font-family: ui-monospace, monospace;
   font-size: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
 .bm-margin {
@@ -155,11 +157,27 @@ header p {
   padding: 14px 20px;
 }
 
+.bm-margin:hover {
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.bm-margin.copied {
+  background: rgba(110, 231, 160, 0.12);
+}
+
 .bm-padding {
   border-color: rgba(74, 222, 128, 0.5);
   background: rgba(74, 222, 128, 0.06);
   padding: 14px 20px;
   width: 100%;
+}
+
+.bm-padding:hover {
+  background: rgba(74, 222, 128, 0.14);
+}
+
+.bm-padding.copied {
+  background: rgba(110, 231, 160, 0.18);
 }
 
 .bm-content {
@@ -171,6 +189,7 @@ header p {
   font-size: 11px;
   text-align: center;
   white-space: nowrap;
+  cursor: default;
 }
 
 .bm-label {
@@ -201,3 +220,48 @@ header p {
 
 .bm-margin > .bm-top { top: 14px; }
 .bm-margin > .bm-label ~ .bm-top { top: 2px; }
+
+/* Block header with copy button */
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.block-header h2 {
+  margin: 0;
+}
+
+/* Copy buttons */
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  padding: 2px 8px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(138, 180, 255, 0.08);
+}
+
+.copy-btn.copied {
+  color: #6ee7a0;
+  border-color: #6ee7a0;
+}
+
+.copy-all {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
