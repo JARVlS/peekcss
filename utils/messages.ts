@@ -62,3 +62,6 @@ export type SidepanelMessage =
   | { kind: 'set-color-format'; format: ColorFormat }
   | { kind: 'scan-overview' }
   | { kind: 'download-image'; src: string };
+
+// Content script → Background (runtime.sendMessage)
+export type DownloadRequest = { kind: 'download-request'; url: string; filename: string };

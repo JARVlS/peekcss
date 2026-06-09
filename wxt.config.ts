@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'PeekCSS',
     description: 'Inspect CSS, colors, fonts, and assets on any webpage.',
-    permissions: ['storage', 'activeTab'],
+    permissions: ['storage', 'activeTab', 'downloads'],
     action: {}
   },
 });

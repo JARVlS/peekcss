@@ -1,6 +1,7 @@
 // entrypoints/content.ts
 import {
   INSPECTOR_PORT,
+  type DownloadRequest,
   type ImageInfo,
   type InspectionData,
   type InspectorMessage,
@@ -570,17 +571,20 @@ function makeThumb(img: HTMLImageElement): string | null {
 }
 
 function filenameFromUrl(url: string): string {
+  let name = 'image';
   try {
     const u = new URL(url, location.href);
-    const name = u.pathname.split('/').filter(Boolean).pop();
-    return name && /\.[a-z0-9]+$/i.test(name) ? name : (name || 'image') + '.png';
+    const last = u.pathname.split('/').filter(Boolean).pop();
+    if (last) name = decodeURIComponent(last);
   } catch {
-    return 'image.png';
+    // keep default
   }
+  name = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'image';
+  return /\.[a-z0-9]+$/i.test(name) ? name : `${name}.png`;
 }
 
 function downloadImage(src: string) {
-  let href = src;
+  let url = src;
   let filename = filenameFromUrl(src);
 
   const match = Array.from(document.images).find((i) => (i.currentSrc || i.src) === src);
@@ -592,19 +596,14 @@ function downloadImage(src: string) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(match, 0, 0);
-        href = canvas.toDataURL('image/png');
+        url = canvas.toDataURL('image/png');
         filename = filename.replace(/\.[^.]+$/, '') + '.png';
       }
     } catch {
-      href = src;
+      url = src;
     }
   }
 
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const req: DownloadRequest = { kind: 'download-request', url, filename };
+  browser.runtime.sendMessage(req);
 }
