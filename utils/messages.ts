@@ -1,5 +1,7 @@
 export const INSPECTOR_PORT = 'peekcss:inspector';
 
+import type { ColorFormat } from './color';
+
 export interface InspectionData {
   selector: { tag: string; id: string | null; classes: string[] };
   dimensions: { width: number; height: number };
@@ -26,6 +28,21 @@ export interface InspectionData {
   background: { color: string; image: string };
   layout: { display: string; position: string };
   effects: { boxShadow: string; opacity: string };
+  contrast: { ratio: number; level: string; textColor: string; bgColor: string } | null;
+  allCss: string;
+}
+
+export interface ImageInfo {
+  src: string;
+  thumb: string;
+  width: number;
+  height: number;
+  kind: 'img' | 'background';
+}
+
+export interface OverviewData {
+  colors: string[];
+  images: ImageInfo[];
 }
 
 // Discriminated union → adding a new message kind forces both sides
@@ -34,9 +51,14 @@ export interface InspectionData {
 // Content script → Sidepanel
 export type InspectorMessage =
   | { kind: 'update'; data: InspectionData }
+  | { kind: 'overview'; data: OverviewData }
+  | { kind: 'shortcut'; action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' }
   | { kind: 'cleared' };
 
 // Sidepanel → Content script
 export type SidepanelMessage =
   | { kind: 'set-active'; active: boolean }
-  | { kind: 'set-popup'; enabled: boolean };
+  | { kind: 'set-popup'; enabled: boolean }
+  | { kind: 'set-color-format'; format: ColorFormat }
+  | { kind: 'scan-overview' }
+  | { kind: 'download-image'; src: string };

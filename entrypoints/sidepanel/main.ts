@@ -1,10 +1,13 @@
 // entrypoints/sidepanel/main.ts
 import {
   INSPECTOR_PORT,
+  type ImageInfo,
   type InspectionData,
   type InspectorMessage,
+  type OverviewData,
   type SidepanelMessage,
 } from '@/utils/messages';
+import { type ColorFormat, COLOR_FORMATS, formatColor } from '@/utils/color';
 
 const statusEl = document.getElementById('status')!;
 const panelEl = document.getElementById('panel') as HTMLElement;
@@ -15,17 +18,31 @@ const popupToggleBtn = document.getElementById('popup-toggle')!;
 const popupIconOn = document.getElementById('popup-icon-on')!;
 const popupIconOff = document.getElementById('popup-icon-off')!;
 const copyAllBtn = document.getElementById('copy-all')!;
+const overviewStatusEl = document.getElementById('overview-status')!;
+const colorsGridEl = document.getElementById('colors-grid')!;
+const imagesGridEl = document.getElementById('images-grid')!;
+const colorsCountEl = document.getElementById('colors-count')!;
+const imagesCountEl = document.getElementById('images-count')!;
+const contrastBlockEl = document.getElementById('contrast-block') as HTMLElement;
+const contrastEl = document.getElementById('contrast')!;
+const colorFormatSelect = document.getElementById('color-format') as HTMLSelectElement;
 
 let port: ReturnType<typeof browser.tabs.connect> | undefined;
 let generation = 0;
 let inspectorActive = true;
 let popupEnabled = false;
+let colorFormat: ColorFormat = 'hex';
+let fullCss = '';
+let lastData: InspectionData | null = null;
+let lastOverview: OverviewData | null = null;
 
 // Stores current CSS items per section for copy-section buttons
 const sectionData: Record<string, Array<[string, string]>> = {};
 
-toggleBtn.addEventListener('click', () => {
-  inspectorActive = !inspectorActive;
+const fmtColor = (c: string) => formatColor(c, colorFormat);
+
+function setInspectorActive(value: boolean) {
+  inspectorActive = value;
   toggleBtn.classList.toggle('active', inspectorActive);
   iconOn.style.display = inspectorActive ? '' : 'none';
   iconOff.style.display = inspectorActive ? 'none' : '';
@@ -33,10 +50,10 @@ toggleBtn.addEventListener('click', () => {
     const msg: SidepanelMessage = { kind: 'set-active', active: inspectorActive };
     port.postMessage(msg);
   }
-});
+}
 
-popupToggleBtn.addEventListener('click', () => {
-  popupEnabled = !popupEnabled;
+function setPopupEnabled(value: boolean) {
+  popupEnabled = value;
   popupToggleBtn.classList.toggle('active', popupEnabled);
   popupIconOn.style.display = popupEnabled ? '' : 'none';
   popupIconOff.style.display = popupEnabled ? 'none' : '';
@@ -44,6 +61,102 @@ popupToggleBtn.addEventListener('click', () => {
     const msg: SidepanelMessage = { kind: 'set-popup', enabled: popupEnabled };
     port.postMessage(msg);
   }
+}
+
+toggleBtn.addEventListener('click', () => setInspectorActive(!inspectorActive));
+popupToggleBtn.addEventListener('click', () => setPopupEnabled(!popupEnabled));
+
+// Bottom navigation: switch between views
+const navButtons = document.querySelectorAll<HTMLButtonElement>('.nav-btn');
+const views: Record<string, HTMLElement> = {
+  inspector: document.getElementById('view-inspector')!,
+  overview: document.getElementById('view-overview')!,
+  settings: document.getElementById('view-settings')!,
+};
+navButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.view!;
+    navButtons.forEach((b) => b.classList.toggle('active', b === btn));
+    for (const [name, el] of Object.entries(views)) el.hidden = name !== view;
+    if (view === 'overview') requestOverview();
+  });
+});
+
+// Theme (light/dark)
+type Theme = 'light' | 'dark';
+const themeControl = document.getElementById('theme-control')!;
+const themeButtons = themeControl.querySelectorAll<HTMLButtonElement>('button');
+let currentTheme: Theme = 'dark';
+
+function applyTheme(theme: Theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  themeButtons.forEach((b) => b.classList.toggle('active', b.dataset.theme === theme));
+}
+
+function setTheme(theme: Theme) {
+  applyTheme(theme);
+  browser.storage.local.set({ theme });
+}
+
+themeButtons.forEach((btn) => {
+  btn.addEventListener('click', () => setTheme(btn.dataset.theme as Theme));
+});
+
+browser.storage.local.get('theme').then((res) => {
+  applyTheme(res.theme === 'light' ? 'light' : 'dark');
+});
+
+// Color format preference (applied across the whole app)
+function applyColorFormat(format: ColorFormat) {
+  colorFormat = format;
+  colorFormatSelect.value = format;
+  if (lastData) render(lastData);
+  if (lastOverview) renderOverview(lastOverview);
+  if (port) {
+    const msg: SidepanelMessage = { kind: 'set-color-format', format };
+    port.postMessage(msg);
+  }
+}
+
+colorFormatSelect.addEventListener('change', () => {
+  const format = colorFormatSelect.value as ColorFormat;
+  applyColorFormat(format);
+  browser.storage.local.set({ colorFormat: format });
+});
+
+browser.storage.local.get('colorFormat').then((res) => {
+  const stored = res.colorFormat as ColorFormat | undefined;
+  applyColorFormat(stored && COLOR_FORMATS.includes(stored) ? stored : 'hex');
+});
+
+// Keyboard shortcuts (q=theme, i=inspector, h=hover popup)
+function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup') {
+  if (action === 'toggle-theme') setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  else if (action === 'toggle-inspector') setInspectorActive(!inspectorActive);
+  else if (action === 'toggle-popup') setPopupEnabled(!popupEnabled);
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target as HTMLElement | null;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+    return;
+  }
+  switch (e.key.toLowerCase()) {
+    case 'q':
+      handleShortcut('toggle-theme');
+      break;
+    case 'i':
+      handleShortcut('toggle-inspector');
+      break;
+    case 'h':
+      handleShortcut('toggle-popup');
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
 });
 
 // Section copy buttons
@@ -59,10 +172,8 @@ document.querySelectorAll<HTMLButtonElement>('.copy-section').forEach((btn) => {
 
 // Full export
 copyAllBtn.addEventListener('click', () => {
-  const all = Object.values(sectionData).flat();
-  if (all.length === 0) return;
-  const css = all.map(([k, v]) => `${k}: ${v};`).join('\n');
-  copyWithFeedback(copyAllBtn, css);
+  if (!fullCss) return;
+  copyWithFeedback(copyAllBtn, fullCss);
 });
 
 async function connect() {
@@ -90,6 +201,8 @@ async function connect() {
 
   port.onMessage.addListener((msg: InspectorMessage) => {
     if (msg.kind === 'update') render(msg.data);
+    else if (msg.kind === 'overview') renderOverview(msg.data);
+    else if (msg.kind === 'shortcut') handleShortcut(msg.action);
   });
 
   port.onDisconnect.addListener(() => {
@@ -105,6 +218,19 @@ async function connect() {
     const msg: SidepanelMessage = { kind: 'set-popup', enabled: true };
     port.postMessage(msg);
   }
+  const fmtMsg: SidepanelMessage = { kind: 'set-color-format', format: colorFormat };
+  port.postMessage(fmtMsg);
+  if (!views.overview.hidden) requestOverview();
+}
+
+function requestOverview() {
+  overviewStatusEl.textContent = 'Scanning page…';
+  if (!port) {
+    overviewStatusEl.textContent = "Can't inspect this page.";
+    return;
+  }
+  const msg: SidepanelMessage = { kind: 'scan-overview' };
+  port.postMessage(msg);
 }
 
 connect();
@@ -116,6 +242,8 @@ browser.tabs.onUpdated.addListener((_id, changeInfo, tab) => {
 function render(d: InspectionData) {
   statusEl.textContent = 'Inspecting';
   panelEl.hidden = false;
+  fullCss = d.allCss;
+  lastData = d;
 
   setText('sel-tag', d.selector.tag);
   setText('sel-id', d.selector.id ? `#${d.selector.id}` : '');
@@ -132,7 +260,7 @@ function render(d: InspectionData) {
     ['font-weight', d.typography.fontWeight],
     ['line-height', d.typography.lineHeight],
     ['letter-spacing', d.typography.letterSpacing],
-    ['color', d.typography.color],
+    ['color', fmtColor(d.typography.color)],
   ];
   sectionData['typo'] = typoItems;
   rows('typo', typoItems.map(([k, v]) => [k, v, k === 'color'] as [string, string, boolean?]));
@@ -151,7 +279,7 @@ function render(d: InspectionData) {
   ]);
 
   const bgItems: Array<[string, string]> = [
-    ['background-color', d.background.color],
+    ['background-color', fmtColor(d.background.color)],
     ['background-image', d.background.image],
   ];
   sectionData['bg'] = bgItems;
@@ -170,6 +298,105 @@ function render(d: InspectionData) {
   ];
   sectionData['effects'] = effectsItems;
   rows('effects', effectsItems);
+
+  renderContrast(d.contrast);
+}
+
+function renderContrast(c: InspectionData['contrast']) {
+  contrastEl.replaceChildren();
+  if (!c) {
+    contrastBlockEl.hidden = true;
+    return;
+  }
+  contrastBlockEl.hidden = false;
+
+  const ratio = document.createElement('div');
+  ratio.className = 'contrast-ratio';
+
+  const badge = document.createElement('span');
+  badge.className = 'contrast-badge ' + (c.level === 'Fail' ? 'fail' : 'pass');
+  badge.textContent = c.level;
+
+  const value = document.createElement('span');
+  value.className = 'contrast-value';
+  value.textContent = `${c.ratio.toFixed(2)}:1`;
+
+  const preview = document.createElement('span');
+  preview.className = 'contrast-preview';
+  preview.textContent = 'Aa';
+  preview.style.color = c.textColor;
+  preview.style.background = c.bgColor;
+
+  ratio.append(preview, value, badge);
+  contrastEl.append(ratio);
+
+  rows('contrast', [
+    ['text', fmtColor(c.textColor), true],
+    ['background', fmtColor(c.bgColor), true],
+  ]);
+}
+
+function renderOverview(d: OverviewData) {
+  lastOverview = d;
+  overviewStatusEl.textContent = d.colors.length || d.images.length
+    ? 'Colors and images found on this page.'
+    : 'Nothing found on this page.';
+
+  colorsCountEl.textContent = String(d.colors.length);
+  colorsGridEl.replaceChildren();
+  for (const color of d.colors) {
+    const formatted = fmtColor(color);
+    const cell = document.createElement('button');
+    cell.className = 'color-cell';
+    cell.title = `${formatted} — click to copy`;
+    const sw = document.createElement('span');
+    sw.className = 'color-chip';
+    sw.style.background = color;
+    const label = document.createElement('span');
+    label.className = 'color-label';
+    label.textContent = formatted;
+    cell.append(sw, label);
+    cell.addEventListener('click', () => copyWithFeedback(cell, formatted));
+    colorsGridEl.append(cell);
+  }
+
+  imagesCountEl.textContent = String(d.images.length);
+  imagesGridEl.replaceChildren();
+  for (const img of d.images) {
+    imagesGridEl.append(buildImageCard(img));
+  }
+}
+
+function buildImageCard(img: ImageInfo): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'image-card';
+
+  const thumbWrap = document.createElement('div');
+  thumbWrap.className = 'image-thumb';
+  const el = document.createElement('img');
+  el.loading = 'lazy';
+  el.src = img.thumb;
+  el.alt = '';
+  thumbWrap.append(el);
+
+  const meta = document.createElement('div');
+  meta.className = 'image-meta';
+  meta.textContent = img.width && img.height ? `${img.width}\u00d7${img.height}` : img.kind;
+
+  const dl = document.createElement('button');
+  dl.className = 'copy-btn image-dl';
+  dl.textContent = 'Download';
+  dl.title = img.src;
+  dl.addEventListener('click', () => {
+    if (!port) return;
+    const msg: SidepanelMessage = { kind: 'download-image', src: img.src };
+    port.postMessage(msg);
+    dl.classList.add('copied');
+    setTimeout(() => dl.classList.remove('copied'), 600);
+  });
+
+  card.append(thumbWrap, meta, dl);
+  return card;
 }
 
 function setText(id: string, text: string) {
