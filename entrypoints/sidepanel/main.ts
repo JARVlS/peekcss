@@ -73,13 +73,24 @@ const views: Record<string, HTMLElement> = {
   overview: document.getElementById('view-overview')!,
   settings: document.getElementById('view-settings')!,
 };
+const viewOrder = ['inspector', 'overview', 'settings'] as const;
+type ViewName = (typeof viewOrder)[number];
+let currentView: ViewName = 'inspector';
+
+function setView(view: ViewName) {
+  currentView = view;
+  navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+  for (const [name, el] of Object.entries(views)) el.hidden = name !== view;
+  if (view === 'overview') requestOverview();
+}
+
+function cycleTab() {
+  const idx = viewOrder.indexOf(currentView);
+  setView(viewOrder[(idx + 1) % viewOrder.length]);
+}
+
 navButtons.forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view!;
-    navButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    for (const [name, el] of Object.entries(views)) el.hidden = name !== view;
-    if (view === 'overview') requestOverview();
-  });
+  btn.addEventListener('click', () => setView(btn.dataset.view as ViewName));
 });
 
 // Theme (light/dark)
@@ -130,11 +141,12 @@ browser.storage.local.get('colorFormat').then((res) => {
   applyColorFormat(stored && COLOR_FORMATS.includes(stored) ? stored : 'hex');
 });
 
-// Keyboard shortcuts (q=theme, i=inspector, h=hover popup)
-function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup') {
+// Keyboard shortcuts (q=cycle tabs, w=inspector, e=hover popup, n=theme)
+function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab') {
   if (action === 'toggle-theme') setTheme(currentTheme === 'dark' ? 'light' : 'dark');
   else if (action === 'toggle-inspector') setInspectorActive(!inspectorActive);
   else if (action === 'toggle-popup') setPopupEnabled(!popupEnabled);
+  else if (action === 'cycle-tab') cycleTab();
 }
 
 window.addEventListener('keydown', (e) => {
@@ -145,13 +157,16 @@ window.addEventListener('keydown', (e) => {
   }
   switch (e.key.toLowerCase()) {
     case 'q':
-      handleShortcut('toggle-theme');
+      handleShortcut('cycle-tab');
       break;
-    case 'i':
+    case 'w':
       handleShortcut('toggle-inspector');
       break;
-    case 'h':
+    case 'e':
       handleShortcut('toggle-popup');
+      break;
+    case 'n':
+      handleShortcut('toggle-theme');
       break;
     default:
       return;

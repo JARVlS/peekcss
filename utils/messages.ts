@@ -52,7 +52,7 @@ export interface OverviewData {
 export type InspectorMessage =
   | { kind: 'update'; data: InspectionData }
   | { kind: 'overview'; data: OverviewData }
-  | { kind: 'shortcut'; action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' }
+  | { kind: 'shortcut'; action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab' }
   | { kind: 'cleared' };
 
 // Sidepanel → Content script

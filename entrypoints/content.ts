@@ -100,15 +100,18 @@ export default defineContentScript({
       const onKeyDown = (e: KeyboardEvent) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         if (isEditable(e.target)) return;
-        let action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | null = null;
+        let action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab' | null = null;
         switch (e.key.toLowerCase()) {
-          case 'q':
+          case 'n':
             action = 'toggle-theme';
             break;
-          case 'i':
+          case 'q':
+            action = 'cycle-tab';
+            break;
+          case 'w':
             action = 'toggle-inspector';
             break;
-          case 'h':
+          case 'e':
             action = 'toggle-popup';
             break;
         }
