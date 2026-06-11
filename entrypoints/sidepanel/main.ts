@@ -4,10 +4,13 @@
 // shortcuts, delegating rendering to the view modules.
 import {
   INSPECTOR_PORT,
+  type DownloadRequest,
+  type DownloadResult,
   type InspectorMessage,
   type SidepanelMessage,
 } from '@/utils/messages';
 import { type ColorFormat, COLOR_FORMATS, formatColor } from '@/utils/color';
+import { applyBlobExtension, dataUrlToBlob, type DownloadOutcome } from '@/utils/download';
 import { ThemeController } from './theme';
 import { NavigationController } from './navigation';
 import { InspectorView } from './inspectorView';
@@ -29,14 +32,95 @@ let colorFormat: ColorFormat = 'hex';
 
 const fmtColor = (c: string) => formatColor(c, colorFormat);
 
+// Routes a single asset download. The popup is the right place for this:
+//   - It is a privileged DOM context, so it can call browser.downloads.download
+//     directly AND use URL.createObjectURL (needed for data:/blob:).
+//   - A Chrome MV3 service worker cannot create object URLs, so doing the
+//     data:/blob: conversion in the background would not be portable.
+//
+// http(s) URLs are still handed to the background worker: it downloads them
+// with the browser's ambient credentials (no CORS), and centralising that keeps
+// the privileged call in one place.
+async function downloadAsset(url: string, filename: string): Promise<DownloadOutcome> {
+  try {
+    if (/^https?:/i.test(url)) {
+      return await downloadViaBackground(url, filename);
+    }
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      await downloadViaObjectUrl(url, filename);
+      return { ok: true };
+    }
+    throw new Error(`Unsupported URL scheme for "${url.slice(0, 24)}…"`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[PeekCSS] asset download failed:', message, url);
+    return { ok: false, error: message };
+  }
+}
+
+async function downloadViaBackground(url: string, filename: string): Promise<DownloadOutcome> {
+  const request: DownloadRequest = { kind: 'download-request', url, filename };
+  const result = (await browser.runtime.sendMessage(request)) as DownloadResult | undefined;
+  if (!result) {
+    throw new Error('No response from background download handler');
+  }
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+  return { ok: true };
+}
+
+// Firefox's downloads.download() rejects data: and blob: URLs outright
+// ("Access denied for URL data:..."). We turn them into a fresh object URL
+// first, which the API accepts.
+async function downloadViaObjectUrl(url: string, filename: string): Promise<void> {
+  const blob = url.startsWith('data:') ? dataUrlToBlob(url) : await fetchBlobFromUrl(url);
+  const finalName = applyBlobExtension(filename, blob.type);
+  const objectUrl = URL.createObjectURL(blob);
+
+  let downloadId: number;
+  try {
+    downloadId = await browser.downloads.download({ url: objectUrl, filename: finalName });
+  } catch (error) {
+    // The download never started, so the object URL is safe to free now.
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+
+  revokeObjectUrlWhenSettled(downloadId, objectUrl);
+}
+
+async function fetchBlobFromUrl(blobUrl: string): Promise<Blob> {
+  // Works for object URLs created by the extension itself. Object URLs created
+  // inside the inspected page are scoped to that page and cannot be read here —
+  // that failure is surfaced to the UI rather than swallowed.
+  const response = await fetch(blobUrl);
+  if (!response.ok) {
+    throw new Error(`Could not read blob URL (HTTP ${response.status})`);
+  }
+  return await response.blob();
+}
+
+// Frees the object URL only AFTER the download settles. Revoking while the
+// download is still in flight aborts it, so we wait for the terminal
+// "complete" or "interrupted" state reported by downloads.onChanged.
+function revokeObjectUrlWhenSettled(downloadId: number, objectUrl: string): void {
+  const handleChange = (delta: Browser.downloads.DownloadDelta) => {
+    if (delta.id !== downloadId || !delta.state) {
+      return;
+    }
+    const state = delta.state.current;
+    if (state === 'complete' || state === 'interrupted') {
+      URL.revokeObjectURL(objectUrl);
+      browser.downloads.onChanged.removeListener(handleChange);
+    }
+  };
+  browser.downloads.onChanged.addListener(handleChange);
+}
+
 const theme = new ThemeController();
 const inspectorView = new InspectorView(fmtColor);
-const overviewView = new OverviewView(fmtColor, (src) => {
-  if (!port) return false;
-  const msg: SidepanelMessage = { kind: 'download-image', src };
-  port.postMessage(msg);
-  return true;
-});
+const overviewView = new OverviewView(fmtColor, downloadAsset);
 const nav = new NavigationController((view) => {
   if (view === 'overview') requestOverview();
 });

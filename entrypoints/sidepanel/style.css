@@ -281,6 +281,16 @@ header p {
   border-color: #6ee7a0;
 }
 
+.copy-btn.failed {
+  color: #f87171;
+  border-color: #f87171;
+}
+
+.copy-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .copy-all {
   display: block;
   width: 100%;
@@ -557,4 +567,252 @@ kbd {
 .contrast-badge.fail {
   background: rgba(248, 113, 113, 0.15);
   color: #f87171;
+}
+
+/* Inspector: WCAG conformance chips */
+.contrast-levels {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.contrast-chip {
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+
+.contrast-chip.pass {
+  background: rgba(110, 231, 160, 0.15);
+  color: #6ee7a0;
+}
+
+.contrast-chip.fail {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.contrast-size {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+/* Overview: accessibility score */
+.a11y-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.a11y-ring {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  flex: none;
+  background: conic-gradient(var(--ring) calc(var(--pct) * 1%), var(--border) 0);
+  display: grid;
+  place-items: center;
+}
+
+.a11y-ring::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.a11y-ring-num {
+  position: relative;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: var(--text);
+}
+
+.a11y-score-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.a11y-grade {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.a11y-rating {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.a11y-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.a11y-bar-row {
+  margin-top: 10px;
+}
+
+.a11y-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.a11y-bar-label {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.a11y-bar-val {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+}
+
+.a11y-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.a11y-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.a11y-bar-detail {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.a11y-cb-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.a11y-cb-pair {
+  display: inline-flex;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.a11y-cb-swatch {
+  width: 16px;
+  height: 16px;
+}
+
+.a11y-empty {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Overview: contrast issues */
+#contrast-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.issue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.issue:hover {
+  border-color: var(--accent);
+}
+
+.issue.copied {
+  border-color: #6ee7a0;
+}
+
+.issue-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  flex: none;
+}
+
+.issue-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.issue-sel {
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.issue-sample {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.issue-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+
+.issue-ratio {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+}
+
+.issue-ratio.fail {
+  color: #f87171;
+}
+
+.issue-need {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
 }

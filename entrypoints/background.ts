@@ -1,5 +1,5 @@
 // entrypoints/background.ts
-import type { DownloadRequest } from '@/utils/messages';
+import type { DownloadRequest, DownloadResult } from '@/utils/messages';
 
 export default defineBackground(() => {
   // Toolbar icon click → toggle sidebar.
@@ -8,13 +8,35 @@ export default defineBackground(() => {
     browser.sidebarAction.toggle();
   });
 
-  // Image downloads are routed here so they use the privileged downloads API,
-  // which works regardless of page CSP or cross-origin restrictions.
-  browser.runtime.onMessage.addListener((msg: DownloadRequest) => {
-    if (msg?.kind !== 'download-request' || !msg.url) return;
-    browser.downloads.download({ url: msg.url, filename: msg.filename }).catch(() => {
-      // Fall back to opening the resource if the download is rejected.
-      browser.tabs.create({ url: msg.url });
-    });
-  });
+  // http(s) image downloads are routed here so they use the privileged
+  // downloads API, which fetches with the browser's own credentials and
+  // ignores page CSP / cross-origin restrictions. data:/blob: URLs are handled
+  // in the popup instead (see entrypoints/sidepanel/main.ts) because converting
+  // them requires URL.createObjectURL, which is absent in a Chrome MV3 worker.
+  //
+  // Returning a Promise tells the WebExtensions runtime to keep the message
+  // channel open and deliver the resolved value back to the popup as the
+  // sendMessage response.
+  browser.runtime.onMessage.addListener(
+    (message: DownloadRequest): Promise<DownloadResult> | undefined => {
+      if (!message || message.kind !== 'download-request') {
+        return undefined;
+      }
+      return handleDownloadRequest(message);
+    },
+  );
 });
+
+async function handleDownloadRequest(message: DownloadRequest): Promise<DownloadResult> {
+  try {
+    const downloadId = await browser.downloads.download({
+      url: message.url,
+      filename: message.filename,
+    });
+    return { ok: true, downloadId };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error('[PeekCSS] background download failed:', reason, message.url);
+    return { ok: false, error: reason };
+  }
+}

@@ -82,12 +82,22 @@
           <div class="header-row"><h1>Overview</h1></div>
           <p id="overview-status">Scanning page…</p>
         </header>
+        <div class="block" id="a11y-block" hidden>
+          <div class="block-header"><h2>Accessibility</h2></div>
+          <div id="a11y-summary"></div>
+          <div id="a11y-breakdown"></div>
+        </div>
+        <div class="block" id="contrast-issues-block" hidden>
+          <div class="block-header"><h2>Contrast issues</h2><span id="contrast-issues-count" class="count-badge"></span></div>
+          <div id="contrast-issues"></div>
+        </div>
         <div class="block">
           <div class="block-header"><h2>Colors</h2><span id="colors-count" class="count-badge"></span></div>
           <div id="colors-grid" class="colors-grid"></div>
         </div>
         <div class="block">
           <div class="block-header"><h2>Images</h2><span id="images-count" class="count-badge"></span></div>
+          <button id="images-download-all" class="copy-btn copy-all" hidden>Download all</button>
           <div id="images-grid" class="images-grid"></div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 // entrypoints/content.ts
 import {
   INSPECTOR_PORT,
-  type DownloadRequest,
   type ImageInfo,
   type InspectionData,
   type InspectorMessage,
@@ -10,11 +9,15 @@ import {
 } from '@/utils/messages';
 import {
   type ColorFormat,
+  composite,
+  contrastRatio,
   formatColor,
   formatRgba,
+  isLargeText,
   parseColor,
-  type RGBA,
+  wcagLevels,
 } from '@/utils/color';
+import { auditAccessibility, effectiveBackground } from '@/utils/audit';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -157,8 +160,6 @@ export default defineContentScript({
         } else if (msg.kind === 'scan-overview') {
           const overview: InspectorMessage = { kind: 'overview', data: scanOverview() };
           port.postMessage(overview);
-        } else if (msg.kind === 'download-image') {
-          downloadImage(msg.src);
         } else if (msg.kind === 'set-color-format') {
           colorFormat = msg.format;
           if (popupEnabled && active && hovered) showPopupFor(hovered);
@@ -428,54 +429,26 @@ function readAllCss(cs: CSSStyleDeclaration): string {
   return decls.join('\n');
 }
 
-function composite(fg: RGBA, bg: RGBA): RGBA {
-  const a = fg.a + bg.a * (1 - fg.a);
-  if (a === 0) return { r: 0, g: 0, b: 0, a: 0 };
-  return {
-    r: (fg.r * fg.a + bg.r * bg.a * (1 - fg.a)) / a,
-    g: (fg.g * fg.a + bg.g * bg.a * (1 - fg.a)) / a,
-    b: (fg.b * fg.a + bg.b * bg.a * (1 - fg.a)) / a,
-    a,
-  };
-}
-
-function relLuminance(c: RGBA): number {
-  const lin = (v: number) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
-}
-
-function effectiveBackground(el: Element): RGBA {
-  const white: RGBA = { r: 255, g: 255, b: 255, a: 1 };
-  let node: Element | null = el;
-  let result: RGBA | null = null;
-  while (node) {
-    const bg = parseColor(window.getComputedStyle(node).backgroundColor);
-    if (bg && bg.a > 0) {
-      result = result ? composite(result, bg) : bg;
-      if (result.a >= 0.999) return result;
-    }
-    node = node.parentElement;
-  }
-  return result ? composite(result, white) : white;
-}
-
-function computeContrast(
-  el: Element,
-  cs: CSSStyleDeclaration,
-): InspectionData['contrast'] {
+function computeContrast(el: Element, cs: CSSStyleDeclaration): InspectionData['contrast'] {
   const text = parseColor(cs.color);
   if (!text || text.a === 0) return null;
   const bg = effectiveBackground(el);
   const fgOnBg = composite(text, bg);
-  const l1 = relLuminance(fgOnBg);
-  const l2 = relLuminance(bg);
-  const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-  const rounded = Math.round(ratio * 100) / 100;
-  const level = ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : ratio >= 3 ? 'AA Large' : 'Fail';
-  return { ratio: rounded, level, textColor: cs.color, bgColor: formatRgba(bg, 'rgb') };
+  const ratio = contrastRatio(fgOnBg, bg);
+  const fontSize = parseFloat(cs.fontSize) || 16;
+  const fontWeight = parseInt(cs.fontWeight, 10) || 400;
+  const large = isLargeText(fontSize, fontWeight);
+  const { aa, aaa, label } = wcagLevels(ratio, large);
+  return {
+    ratio: Math.round(ratio * 100) / 100,
+    level: label,
+    textColor: cs.color,
+    bgColor: formatRgba(bg, 'rgb'),
+    fontSize: Math.round(fontSize),
+    isLargeText: large,
+    aa,
+    aaa,
+  };
 }
 
 function scanOverview(): OverviewData {
@@ -500,12 +473,11 @@ function scanOverview(): OverviewData {
     addColor(cs.outlineColor);
   }
 
-  const colors = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 120)
-    .map(([color]) => color);
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const colors = sorted.slice(0, 120).map(([color]) => color);
+  const prominent = sorted.slice(0, 14).map(([color]) => color);
 
-  return { colors, images: scanImages() };
+  return { colors, images: scanImages(), accessibility: auditAccessibility(prominent) };
 }
 
 function scanImages(): ImageInfo[] {
@@ -571,42 +543,4 @@ function makeThumb(img: HTMLImageElement): string | null {
   } catch {
     return null;
   }
-}
-
-function filenameFromUrl(url: string): string {
-  let name = 'image';
-  try {
-    const u = new URL(url, location.href);
-    const last = u.pathname.split('/').filter(Boolean).pop();
-    if (last) name = decodeURIComponent(last);
-  } catch {
-    // keep default
-  }
-  name = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'image';
-  return /\.[a-z0-9]+$/i.test(name) ? name : `${name}.png`;
-}
-
-function downloadImage(src: string) {
-  let url = src;
-  let filename = filenameFromUrl(src);
-
-  const match = Array.from(document.images).find((i) => (i.currentSrc || i.src) === src);
-  if (match && match.complete && match.naturalWidth > 0) {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = match.naturalWidth;
-      canvas.height = match.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(match, 0, 0);
-        url = canvas.toDataURL('image/png');
-        filename = filename.replace(/\.[^.]+$/, '') + '.png';
-      }
-    } catch {
-      url = src;
-    }
-  }
-
-  const req: DownloadRequest = { kind: 'download-request', url, filename };
-  browser.runtime.sendMessage(req);
 }

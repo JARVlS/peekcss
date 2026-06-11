@@ -81,3 +81,95 @@ export function formatColor(input: string, format: ColorFormat): string {
   if (!c) return input;
   return formatRgba(c, format);
 }
+
+// --- Contrast & accessibility helpers ---
+
+// Composites a foreground color over a background using its alpha channel.
+export function composite(fg: RGBA, bg: RGBA): RGBA {
+  const a = fg.a + bg.a * (1 - fg.a);
+  if (a === 0) return { r: 0, g: 0, b: 0, a: 0 };
+  return {
+    r: (fg.r * fg.a + bg.r * bg.a * (1 - fg.a)) / a,
+    g: (fg.g * fg.a + bg.g * bg.a * (1 - fg.a)) / a,
+    b: (fg.b * fg.a + bg.b * bg.a * (1 - fg.a)) / a,
+    a,
+  };
+}
+
+export function relativeLuminance(c: RGBA): number {
+  const lin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+}
+
+// WCAG contrast ratio between two opaque colors (1..21).
+export function contrastRatio(a: RGBA, b: RGBA): number {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+// WCAG "large text": >= 24px, or >= 18.66px when bold (weight >= 700).
+export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
+  return fontSizePx >= 24 || (fontSizePx >= 18.66 && fontWeight >= 700);
+}
+
+export interface WcagLevels {
+  aa: boolean;
+  aaa: boolean;
+  label: string;
+}
+
+// WCAG conformance for a contrast ratio at the given text size.
+export function wcagLevels(ratio: number, large: boolean): WcagLevels {
+  const aa = ratio >= (large ? 3 : 4.5);
+  const aaa = ratio >= (large ? 4.5 : 7);
+  const label = aaa ? 'AAA' : aa ? (large ? 'AA Large' : 'AA') : 'Fail';
+  return { aa, aaa, label };
+}
+
+export type CvdType = 'protanopia' | 'deuteranopia' | 'tritanopia';
+
+export const CVD_TYPES: CvdType[] = ['protanopia', 'deuteranopia', 'tritanopia'];
+
+// Common sRGB color-vision-deficiency simulation matrices.
+const CVD_MATRICES: Record<CvdType, number[][]> = {
+  protanopia: [
+    [0.152, 1.053, -0.205],
+    [0.115, 0.786, 0.099],
+    [-0.004, -0.048, 1.052],
+  ],
+  deuteranopia: [
+    [0.367, 0.861, -0.228],
+    [0.28, 0.673, 0.047],
+    [-0.012, 0.043, 0.969],
+  ],
+  tritanopia: [
+    [1.256, -0.077, -0.179],
+    [-0.078, 0.93, 0.148],
+    [0.005, 0.691, 0.304],
+  ],
+};
+
+// Approximates how a color is perceived under a color-vision deficiency.
+export function simulateCvd(c: RGBA, type: CvdType): RGBA {
+  const m = CVD_MATRICES[type];
+  const clamp = (n: number) => Math.min(255, Math.max(0, n));
+  return {
+    r: clamp(m[0][0] * c.r + m[0][1] * c.g + m[0][2] * c.b),
+    g: clamp(m[1][0] * c.r + m[1][1] * c.g + m[1][2] * c.b),
+    b: clamp(m[2][0] * c.r + m[2][1] * c.g + m[2][2] * c.b),
+    a: c.a,
+  };
+}
+
+// Perceptual color distance (redmean approximation), range ~0..765.
+export function colorDistance(a: RGBA, b: RGBA): number {
+  const rmean = (a.r + b.r) / 2;
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return Math.sqrt((2 + rmean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rmean) / 256) * db * db);
+}

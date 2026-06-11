@@ -136,11 +136,34 @@ export class InspectorView {
     ratio.append(preview, value, badge);
     this.contrastEl.append(ratio);
 
+    const levels = document.createElement('div');
+    levels.className = 'contrast-levels';
+    levels.append(
+      levelChip('AA', c.aa),
+      levelChip('AAA', c.aaa),
+      sizeTag(`${c.fontSize}px${c.isLargeText ? ' · large' : ''}`),
+    );
+    this.contrastEl.append(levels);
+
     rows('contrast', [
       ['text', this.fmtColor(c.textColor), true],
       ['background', this.fmtColor(c.bgColor), true],
     ]);
   }
+}
+
+function levelChip(label: string, pass: boolean): HTMLElement {
+  const chip = document.createElement('span');
+  chip.className = 'contrast-chip ' + (pass ? 'pass' : 'fail');
+  chip.textContent = `${label} ${pass ? '\u2713' : '\u2717'}`;
+  return chip;
+}
+
+function sizeTag(text: string): HTMLElement {
+  const tag = document.createElement('span');
+  tag.className = 'contrast-size';
+  tag.textContent = text;
+  return tag;
 }
 
 function renderBoxModel(d: InspectionData) {

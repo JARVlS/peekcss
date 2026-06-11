@@ -28,7 +28,16 @@ export interface InspectionData {
   background: { color: string; image: string };
   layout: { display: string; position: string };
   effects: { boxShadow: string; opacity: string };
-  contrast: { ratio: number; level: string; textColor: string; bgColor: string } | null;
+  contrast: {
+    ratio: number;
+    level: string;
+    textColor: string;
+    bgColor: string;
+    fontSize: number;
+    isLargeText: boolean;
+    aa: boolean;
+    aaa: boolean;
+  } | null;
   allCss: string;
 }
 
@@ -40,9 +49,55 @@ export interface ImageInfo {
   kind: 'img' | 'background';
 }
 
+// A single element whose text fails WCAG AA contrast.
+export interface ContrastIssue {
+  selector: string;
+  ratio: number;
+  required: number;
+  textColor: string;
+  bgColor: string;
+  fontSize: number;
+  largeText: boolean;
+  sample: string;
+}
+
+// A pair of palette colors that become hard to tell apart under a
+// color-vision deficiency.
+export interface ColorBlindConflict {
+  a: string;
+  b: string;
+  type: string;
+}
+
+// Page-wide accessibility audit shown in the overview.
+export interface AccessibilityReport {
+  score: number;
+  grade: string;
+  rating: string;
+  contrast: {
+    score: number;
+    checked: number;
+    passed: number;
+    failed: number;
+    issues: ContrastIssue[];
+  };
+  textSize: {
+    score: number;
+    checked: number;
+    smallCount: number;
+    smallestPx: number;
+  };
+  colorBlind: {
+    score: number;
+    checkedPairs: number;
+    conflicts: ColorBlindConflict[];
+  };
+}
+
 export interface OverviewData {
   colors: string[];
   images: ImageInfo[];
+  accessibility: AccessibilityReport;
 }
 
 // Discriminated union → adding a new message kind forces both sides
@@ -60,8 +115,15 @@ export type SidepanelMessage =
   | { kind: 'set-active'; active: boolean }
   | { kind: 'set-popup'; enabled: boolean }
   | { kind: 'set-color-format'; format: ColorFormat }
-  | { kind: 'scan-overview' }
-  | { kind: 'download-image'; src: string };
+  | { kind: 'scan-overview' };
 
-// Content script → Background (runtime.sendMessage)
+// Popup → Background (runtime.sendMessage). Only http(s) URLs are routed here:
+// the background can hand them straight to the downloads API, which fetches
+// with the browser's own privileges (no CORS). data:/blob: URLs are NOT sent
+// here — they are converted to object URLs and downloaded from the popup,
+// because URL.createObjectURL is unavailable in a Chrome MV3 service worker.
 export type DownloadRequest = { kind: 'download-request'; url: string; filename: string };
+
+// Background → Popup (response to DownloadRequest). Carries the failure reason
+// so the popup can show a per-image error instead of failing silently.
+export type DownloadResult = { ok: true; downloadId: number } | { ok: false; error: string };

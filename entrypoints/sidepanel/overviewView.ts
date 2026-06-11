@@ -1,22 +1,40 @@
-import type { ImageInfo, OverviewData } from '@/utils/messages';
+import type { AccessibilityReport, ContrastIssue, ImageInfo, OverviewData } from '@/utils/messages';
 import { copyWithFeedback } from '@/utils/clipboard';
+import { type DownloadOutcome, filenameForAsset } from '@/utils/download';
 
-// Renders the overview view: the palette of colors and the grid of images
-// found on the page.
+// Renders the overview view: the page-wide accessibility audit, the list of
+// contrast issues, the palette of colors, and the grid of images found on
+// the page.
 export class OverviewView {
   private readonly statusEl = document.getElementById('overview-status')!;
+  private readonly a11yBlock = document.getElementById('a11y-block') as HTMLElement;
+  private readonly a11ySummaryEl = document.getElementById('a11y-summary')!;
+  private readonly a11yBreakdownEl = document.getElementById('a11y-breakdown')!;
+  private readonly issuesBlock = document.getElementById('contrast-issues-block') as HTMLElement;
+  private readonly issuesEl = document.getElementById('contrast-issues')!;
+  private readonly issuesCountEl = document.getElementById('contrast-issues-count')!;
   private readonly colorsGridEl = document.getElementById('colors-grid')!;
   private readonly imagesGridEl = document.getElementById('images-grid')!;
+  private readonly downloadAllBtn = document.getElementById('images-download-all') as HTMLButtonElement;
   private readonly colorsCountEl = document.getElementById('colors-count')!;
   private readonly imagesCountEl = document.getElementById('images-count')!;
 
   private lastOverview: OverviewData | null = null;
 
+  // One entry per rendered image card. "Download all" replays these triggers
+  // sequentially, and each trigger also drives its own card's button UI.
+  private imageTriggers: Array<() => Promise<DownloadOutcome>> = [];
+
   constructor(
     private readonly fmtColor: (c: string) => string,
-    // Triggers a download of the given image; returns whether it was sent.
-    private readonly onDownloadImage: (src: string) => boolean,
-  ) {}
+    // Downloads the given asset; resolves with success or a failure reason so
+    // the card can surface a per-image error instead of failing silently.
+    private readonly onDownloadImage: (url: string, filename: string) => Promise<DownloadOutcome>,
+  ) {
+    this.downloadAllBtn.addEventListener('click', () => {
+      void this.downloadAll();
+    });
+  }
 
   setStatus(text: string) {
     this.statusEl.textContent = text;
@@ -33,6 +51,9 @@ export class OverviewView {
       d.colors.length || d.images.length
         ? 'Colors and images found on this page.'
         : 'Nothing found on this page.';
+
+    this.renderAccessibility(d.accessibility);
+    this.renderContrastIssues(d.accessibility.contrast.issues);
 
     this.colorsCountEl.textContent = String(d.colors.length);
     this.colorsGridEl.replaceChildren();
@@ -54,12 +75,141 @@ export class OverviewView {
 
     this.imagesCountEl.textContent = String(d.images.length);
     this.imagesGridEl.replaceChildren();
-    for (const img of d.images) {
-      this.imagesGridEl.append(this.buildImageCard(img));
+    this.imageTriggers = [];
+    d.images.forEach((img, index) => {
+      this.imagesGridEl.append(this.buildImageCard(img, index));
+    });
+
+    this.downloadAllBtn.hidden = d.images.length === 0;
+    this.downloadAllBtn.disabled = false;
+    this.downloadAllBtn.textContent = 'Download all';
+  }
+
+  private renderAccessibility(report: AccessibilityReport) {
+    this.a11yBlock.hidden = false;
+
+    // Score ring + grade.
+    this.a11ySummaryEl.replaceChildren();
+    const summary = document.createElement('div');
+    summary.className = 'a11y-score';
+
+    const ring = document.createElement('div');
+    ring.className = 'a11y-ring';
+    ring.style.setProperty('--pct', String(report.score));
+    ring.style.setProperty('--ring', scoreColor(report.score));
+    const num = document.createElement('span');
+    num.className = 'a11y-ring-num';
+    num.textContent = String(report.score);
+    ring.append(num);
+
+    const meta = document.createElement('div');
+    meta.className = 'a11y-score-meta';
+    const grade = document.createElement('span');
+    grade.className = 'a11y-grade';
+    grade.style.color = scoreColor(report.score);
+    grade.textContent = report.grade;
+    const rating = document.createElement('span');
+    rating.className = 'a11y-rating';
+    rating.textContent = report.rating;
+    const sub = document.createElement('span');
+    sub.className = 'a11y-sub';
+    sub.textContent = 'Accessibility score';
+    meta.append(grade, rating, sub);
+
+    summary.append(ring, meta);
+    this.a11ySummaryEl.append(summary);
+
+    // Per-category breakdown bars.
+    this.a11yBreakdownEl.replaceChildren();
+    const c = report.contrast;
+    this.a11yBreakdownEl.append(
+      bar('Contrast', c.score, c.failed > 0
+        ? `${c.failed} of ${c.checked} text elements fail WCAG AA`
+        : `All ${c.checked} text elements pass WCAG AA`),
+    );
+
+    const t = report.textSize;
+    this.a11yBreakdownEl.append(
+      bar('Text size', t.score, t.smallCount > 0
+        ? `${t.smallCount} elements below 12px (smallest ${t.smallestPx}px)`
+        : 'No tiny text detected'),
+    );
+
+    const cb = report.colorBlind;
+    const cbRow = bar('Color-blind safety', cb.score, cb.conflicts.length > 0
+      ? `${cb.conflicts.length} color pair(s) hard to tell apart`
+      : 'Palette stays distinguishable');
+    if (cb.conflicts.length > 0) {
+      const pairs = document.createElement('div');
+      pairs.className = 'a11y-cb-pairs';
+      for (const conflict of cb.conflicts) {
+        const pair = document.createElement('span');
+        pair.className = 'a11y-cb-pair';
+        pair.title = `${conflict.a} vs ${conflict.b} — ${conflict.type}`;
+        pair.append(swatch(conflict.a), swatch(conflict.b));
+        pairs.append(pair);
+      }
+      cbRow.append(pairs);
+    }
+    this.a11yBreakdownEl.append(cbRow);
+  }
+
+  private renderContrastIssues(issues: ContrastIssue[]) {
+    this.issuesCountEl.textContent = issues.length ? String(issues.length) : '';
+    this.issuesEl.replaceChildren();
+
+    if (issues.length === 0) {
+      this.issuesBlock.hidden = false;
+      const ok = document.createElement('p');
+      ok.className = 'a11y-empty';
+      ok.textContent = 'No contrast issues found. \u2713';
+      this.issuesEl.append(ok);
+      return;
+    }
+
+    this.issuesBlock.hidden = false;
+    for (const issue of issues) {
+      this.issuesEl.append(this.buildIssue(issue));
     }
   }
 
-  private buildImageCard(img: ImageInfo): HTMLElement {
+  private buildIssue(issue: ContrastIssue): HTMLElement {
+    const card = document.createElement('button');
+    card.className = 'issue';
+    card.title = `${issue.selector} — click to copy selector`;
+
+    const preview = document.createElement('span');
+    preview.className = 'issue-preview';
+    preview.textContent = 'Aa';
+    preview.style.color = issue.textColor;
+    preview.style.background = issue.bgColor;
+
+    const body = document.createElement('div');
+    body.className = 'issue-body';
+    const sel = document.createElement('span');
+    sel.className = 'issue-sel';
+    sel.textContent = issue.selector;
+    const sampleEl = document.createElement('span');
+    sampleEl.className = 'issue-sample';
+    sampleEl.textContent = issue.sample;
+    body.append(sel, sampleEl);
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'issue-meta';
+    const ratio = document.createElement('span');
+    ratio.className = 'issue-ratio fail';
+    ratio.textContent = `${issue.ratio.toFixed(2)}:1`;
+    const need = document.createElement('span');
+    need.className = 'issue-need';
+    need.textContent = `needs ${issue.required}:1 · ${issue.fontSize}px`;
+    metaEl.append(ratio, need);
+
+    card.append(preview, body, metaEl);
+    card.addEventListener('click', () => copyWithFeedback(card, issue.selector));
+    return card;
+  }
+
+  private buildImageCard(img: ImageInfo, index: number): HTMLElement {
     const card = document.createElement('div');
     card.className = 'image-card';
 
@@ -75,17 +225,124 @@ export class OverviewView {
     meta.className = 'image-meta';
     meta.textContent = img.width && img.height ? `${img.width}\u00d7${img.height}` : img.kind;
 
+    const filename = filenameForAsset(img.src, index);
+
     const dl = document.createElement('button');
     dl.className = 'copy-btn image-dl';
     dl.textContent = 'Download';
     dl.title = img.src;
+
+    let inFlight = false;
+    const trigger = async (): Promise<DownloadOutcome> => {
+      if (inFlight) return { ok: false, error: 'Download already in progress' };
+      inFlight = true;
+      dl.disabled = true;
+      dl.classList.remove('copied', 'failed');
+      dl.textContent = 'Downloading…';
+
+      const outcome = await this.onDownloadImage(img.src, filename);
+
+      if (outcome.ok) {
+        dl.classList.add('copied');
+        dl.textContent = 'Downloaded \u2713';
+        dl.title = img.src;
+      } else {
+        dl.classList.add('failed');
+        dl.textContent = 'Failed';
+        dl.title = `Download failed: ${outcome.error}`;
+      }
+
+      dl.disabled = false;
+      inFlight = false;
+      window.setTimeout(() => {
+        dl.classList.remove('copied', 'failed');
+        dl.textContent = 'Download';
+        dl.title = img.src;
+      }, 1800);
+
+      return outcome;
+    };
+
     dl.addEventListener('click', () => {
-      if (!this.onDownloadImage(img.src)) return;
-      dl.classList.add('copied');
-      setTimeout(() => dl.classList.remove('copied'), 600);
+      void trigger();
     });
+    this.imageTriggers.push(trigger);
 
     card.append(thumbWrap, meta, dl);
     return card;
   }
+
+  // Downloads every listed image one at a time. Sequential is deliberate:
+  //   - Firefox throttles bursts of programmatic downloads, so a parallel fan-out
+  //     can silently drop some.
+  //   - For data:/blob: assets each download owns an object URL that must outlive
+  //     only its own download; serial execution keeps revocation from racing a
+  //     different in-flight download.
+  // Tradeoff: it is slower on pages with many large images. If that ever matters,
+  // a small bounded concurrency pool (e.g. 2-3 at a time) is the safe upgrade.
+  private async downloadAll(): Promise<void> {
+    const triggers = this.imageTriggers;
+    if (triggers.length === 0) return;
+
+    this.downloadAllBtn.disabled = true;
+    let failures = 0;
+
+    for (let i = 0; i < triggers.length; i++) {
+      this.downloadAllBtn.textContent = `Downloading ${i + 1}/${triggers.length}\u2026`;
+      const outcome = await triggers[i]();
+      if (!outcome.ok) failures++;
+    }
+
+    this.downloadAllBtn.textContent =
+      failures > 0 ? `Done \u2014 ${failures} failed` : 'All downloaded \u2713';
+    this.downloadAllBtn.disabled = false;
+    window.setTimeout(() => {
+      this.downloadAllBtn.textContent = 'Download all';
+    }, 1800);
+  }
+}
+
+// Green → amber → red depending on how high the score is.
+function scoreColor(score: number): string {
+  if (score >= 80) return '#6ee7a0';
+  if (score >= 60) return '#fbbf24';
+  return '#f87171';
+}
+
+function swatch(color: string): HTMLElement {
+  const sw = document.createElement('span');
+  sw.className = 'a11y-cb-swatch';
+  sw.style.background = color;
+  return sw;
+}
+
+// Builds a labeled progress bar row (label, fill, value) for the breakdown.
+function bar(label: string, score: number, detail: string): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'a11y-bar-row';
+
+  const head = document.createElement('div');
+  head.className = 'a11y-bar-head';
+  const name = document.createElement('span');
+  name.className = 'a11y-bar-label';
+  name.textContent = label;
+  const val = document.createElement('span');
+  val.className = 'a11y-bar-val';
+  val.textContent = String(score);
+  head.append(name, val);
+
+  const track = document.createElement('span');
+  track.className = 'a11y-bar';
+  const fill = document.createElement('span');
+  fill.className = 'a11y-bar-fill';
+  fill.style.width = `${score}%`;
+  fill.style.background = scoreColor(score);
+  track.append(fill);
+
+  const detailEl = document.createElement('div');
+  detailEl.className = 'a11y-bar-detail';
+  detailEl.textContent = detail;
+
+  row.append(head, track, detailEl);
+  return row;
 }
