@@ -1,6 +1,13 @@
 // entrypoints/sidepanel/typographyView.ts
 import type { FontRole, FontUsage, TypographyData } from '@/utils/messages';
 import { formatFontLength, type FontUnit } from '@/utils/fontUnit';
+import {
+  categorize,
+  loadCatalog,
+  requestCatalogAccess,
+  suggestPairings,
+  type GoogleFontMeta,
+} from '@/utils/fontPairing';
 
 const ROLE_ORDER: FontRole[] = ['heading', 'body', 'ui', 'other'];
 const ROLE_LABELS: Record<FontRole, string> = {
@@ -23,11 +30,19 @@ export class TypographyView {
   private sortMode: SortMode = 'usage';
   private fontUnit: FontUnit = 'px';
   private lastData: TypographyData | null = null;
+  private proEnabled = false;
+  private catalog: GoogleFontMeta[] | null = null;
 
   constructor() {
     this.sortControl.querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
       btn.addEventListener('click', () => this.setSortMode(btn.dataset.sort as SortMode));
     });
+  }
+
+  setProEnabled(enabled: boolean) {
+    if (this.proEnabled === enabled) return;
+    this.proEnabled = enabled;
+    if (this.lastData) this.render(this.lastData);
   }
 
   setFontUnit(unit: FontUnit) {
@@ -107,8 +122,79 @@ export class TypographyView {
       roles.appendChild(chip);
     }
 
-    card.append(name, meta, roles);
+    const pairBtn = document.createElement('button');
+    pairBtn.type = 'button';
+    pairBtn.className = 'copy-btn font-pair-btn';
+    pairBtn.textContent = 'Pairings';
+    pairBtn.disabled = !this.proEnabled;
+    pairBtn.title = this.proEnabled
+      ? 'Suggest pairings from the Google Fonts catalog (downloaded locally; no page data is sent)'
+      : 'Requires PeekCSS Pro';
+    pairBtn.classList.toggle('locked', !this.proEnabled);
+    const pairings = document.createElement('div');
+    pairings.className = 'font-pairings';
+    pairings.hidden = true;
+    pairBtn.addEventListener('click', () => this.showPairings(font.family, pairBtn, pairings));
+
+    card.append(name, meta, roles, pairBtn, pairings);
     return card;
+  }
+
+  // Pro feature (§5/§7). All matching is local — only Google's public font
+  // catalog is downloaded, behind an optional host permission requested here
+  // (must run inside this click handler to count as a user gesture).
+  private async showPairings(
+    family: string,
+    btn: HTMLButtonElement,
+    container: HTMLElement,
+  ): Promise<void> {
+    if (!this.proEnabled) return;
+    if (!container.hidden) {
+      container.hidden = true;
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Loading\u2026';
+    try {
+      if (!(await requestCatalogAccess())) {
+        btn.textContent = 'Permission needed';
+        return;
+      }
+      this.catalog ??= await loadCatalog();
+      if (!this.catalog) {
+        btn.textContent = "Couldn't load catalog";
+        return;
+      }
+
+      container.replaceChildren();
+      const intro = document.createElement('div');
+      intro.className = 'font-pairings-intro';
+      intro.textContent = `Pairs with ${family} (${categorize(family, this.catalog)}):`;
+      container.appendChild(intro);
+      for (const s of suggestPairings(family, this.catalog)) {
+        const row = document.createElement('a');
+        row.className = 'font-pairing-row';
+        row.href = s.url;
+        row.target = '_blank';
+        row.rel = 'noreferrer noopener';
+        row.title = 'Open on Google Fonts';
+        const name = document.createElement('span');
+        name.textContent = s.family;
+        const cat = document.createElement('span');
+        cat.className = 'font-pairing-cat';
+        cat.textContent = s.category;
+        row.append(name, cat);
+        container.appendChild(row);
+      }
+      container.hidden = false;
+      btn.textContent = 'Pairings';
+    } finally {
+      btn.disabled = false;
+      window.setTimeout(() => {
+        btn.textContent = 'Pairings';
+      }, 1800);
+    }
   }
 }
 

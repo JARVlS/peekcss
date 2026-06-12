@@ -108,6 +108,7 @@ utils/
 * **Typography** *(free account)*  
   * All fonts used on the page, with weights, sizes, and usage counts  
   * Sort by usage or by role (heading / body / UI heuristic)  
+  * Font pairing suggestions from the Google Fonts catalog *(Pro; catalog downloaded locally on demand, matching done in-browser — see §9)*  
 * **Settings** *(free account)*  
   * Light/dark mode toggle  
   * Preferred color format  
@@ -116,7 +117,7 @@ utils/
   * Dev builds: tier override selector  
 * **Tier gating** (§7) — `utils/tier.ts` \+ `gating.ts`; locked views/features shown disabled with lock icon \+ tier hint; default tier `anonymous`; dev override via `devTierOverride` storage key
 
-Status of §5/§6: all items shipped except **font pairing suggestions** (blocked on §9: API choice \+ privacy copy) and the items already moved to §9 (detachable sidebar, dock position). PDF/ASE palette export remains a stretch goal.
+Status of §5/§6: all items shipped except the items moved to §9 (detachable sidebar, dock position). PDF/ASE palette export remains a stretch goal.
 
 ---
 
@@ -238,8 +239,8 @@ Rather than having Fable autonomously design and implement new features in the s
 * **Dock position setting**: which side the sidebar docks (left/right) is a browser-level user preference in Firefox, not exposed to extensions via the sidebar APIs. Chrome's sidePanel API is explicitly not compatible with sidebarAction either, so this can't be a cross-browser settings toggle as currently scoped. At most, Settings could link to the relevant browser instructions — confirm whether that's worth including.  
 * **Account/Pro model** (§7) — needs an explicit decision before any gating code is written.  
 * **Typography tab gating tier** — depends on §7's outcome.  
-* **Third-party font API choice** (Google Fonts vs. Fontspring) and the associated privacy disclosure copy for the store listing.  
-* **New manifest permissions** (e.g. `downloads` for the ZIP export) — flag any new permission for review, since it affects store listing review and the permissions prompt users see on install.
+* ~~Third-party font API choice~~ — **resolved: Google Fonts** (public metadata catalog, no API key). Implemented privacy-first: the catalog is downloaded on demand behind a runtime-requested `fonts.google.com` host permission and all pairing matching happens locally — detected font names and page data are never sent. Store-listing disclosure copy: *"The optional font-pairing feature (Pro) downloads the public Google Fonts catalog from fonts.google.com after you grant access. No information about you or the pages you visit is ever transmitted."*  
+* **New manifest permissions** (e.g. `downloads` for the ZIP export) — flag any new permission for review, since it affects store listing review and the permissions prompt users see on install. *(Status: ZIP needed no new permission; font pairing adds only a runtime-optional host permission — install prompts unchanged on both browsers.)*
 
 ---
 

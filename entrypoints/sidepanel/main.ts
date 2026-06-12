@@ -158,6 +158,7 @@ const gating = new GatingController();
 void initUserTier((tier) => {
   gating.apply(tier);
   overviewView.setProEnabled(hasTier('pro'));
+  typographyView.setProEnabled(hasTier('pro'));
   // A tab unlocked while open (e.g. dev override changed) needs its data.
   if (nav.currentView === 'overview' && !gating.isViewLocked('overview', tier)) {
     requestOverview();
@@ -167,6 +168,7 @@ void initUserTier((tier) => {
 }).then((tier) => {
   gating.apply(tier);
   overviewView.setProEnabled(hasTier('pro'));
+  typographyView.setProEnabled(hasTier('pro'));
 });
 
 function setInspectorActive(value: boolean) {

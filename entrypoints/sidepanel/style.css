@@ -974,3 +974,46 @@ kbd {
   border: 1px solid var(--border);
   color: var(--muted);
 }
+
+/* Font pairing (Pro) */
+.font-pair-btn {
+  margin-top: 6px;
+}
+
+.font-pairings {
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.font-pairings-intro {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.font-pairing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.font-pairing-row:hover span:first-child {
+  text-decoration: underline;
+}
+
+.font-pairing-cat {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.privacy-note {
+  font-size: 10px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
