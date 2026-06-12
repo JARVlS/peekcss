@@ -11,10 +11,12 @@ import {
 } from '@/utils/messages';
 import { type ColorFormat, COLOR_FORMATS, formatColor } from '@/utils/color';
 import { applyBlobExtension, dataUrlToBlob, type DownloadOutcome } from '@/utils/download';
+import { hasTier, initUserTier } from '@/utils/tier';
 import { ThemeController } from './theme';
 import { NavigationController } from './navigation';
 import { InspectorView } from './inspectorView';
 import { OverviewView } from './overviewView';
+import { GatingController } from './gating';
 
 const toggleBtn = document.getElementById('toggle')!;
 const iconOn = document.getElementById('toggle-icon-on')!;
@@ -125,6 +127,17 @@ const nav = new NavigationController((view) => {
   if (view === 'overview') requestOverview();
 });
 
+// §7 tier gating: locked views show a lock panel instead of their content.
+// Until the initial tier resolves, checks default to 'anonymous' (safest).
+const gating = new GatingController();
+void initUserTier((tier) => {
+  gating.apply(tier);
+  // A tab unlocked while open (e.g. dev override changed) needs its data.
+  if (nav.currentView === 'overview' && !gating.isViewLocked('overview', tier)) {
+    requestOverview();
+  }
+}).then((tier) => gating.apply(tier));
+
 function setInspectorActive(value: boolean) {
   inspectorActive = value;
   toggleBtn.classList.toggle('active', inspectorActive);
@@ -175,8 +188,10 @@ browser.storage.local.get('colorFormat').then((res) => {
 
 // Keyboard shortcuts (q=cycle tabs, w=inspector, e=hover popup, n=theme)
 function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab') {
-  if (action === 'toggle-theme') theme.toggle();
-  else if (action === 'toggle-inspector') setInspectorActive(!inspectorActive);
+  // Theme lives in Settings, which is gated behind a free account (§7).
+  if (action === 'toggle-theme') {
+    if (hasTier('free_account')) theme.toggle();
+  } else if (action === 'toggle-inspector') setInspectorActive(!inspectorActive);
   else if (action === 'toggle-popup') setPopupEnabled(!popupEnabled);
   else if (action === 'cycle-tab') nav.cycle();
 }
@@ -254,6 +269,9 @@ async function connect() {
 }
 
 function requestOverview() {
+  // Overview is page-level analysis — free-account tier and up (§7). The
+  // locked panel is already showing, so just skip the scan.
+  if (!hasTier('free_account')) return;
   overviewView.setStatus('Scanning page…');
   if (!port) {
     overviewView.setStatus("Can't inspect this page.");
