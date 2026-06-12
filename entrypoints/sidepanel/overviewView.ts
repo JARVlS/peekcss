@@ -8,6 +8,7 @@ import type {
 } from '@/utils/messages';
 import { copyWithFeedback } from '@/utils/clipboard';
 import { type DownloadOutcome, filenameForAsset } from '@/utils/download';
+import { dominantPurpose, exportPalette, type PaletteExportFormat } from '@/utils/palette';
 
 // Renders the overview view: the page-wide accessibility audit, the list of
 // contrast issues, the palette of colors, and the grid of images found on
@@ -25,6 +26,7 @@ export class OverviewView {
   private readonly groupButtons = document
     .getElementById('colors-group-control')!
     .querySelectorAll<HTMLButtonElement>('button');
+  private readonly exportSelect = document.getElementById('palette-export') as HTMLSelectElement;
   private readonly imagesGridEl = document.getElementById('images-grid')!;
   private readonly downloadAllBtn = document.getElementById('images-download-all') as HTMLButtonElement;
   private readonly colorsCountEl = document.getElementById('colors-count')!;
@@ -54,10 +56,19 @@ export class OverviewView {
         this.setGroupMode(btn.dataset.group === 'purpose');
       });
     });
+
+    this.exportSelect.addEventListener('change', () => {
+      const format = this.exportSelect.value as PaletteExportFormat | '';
+      this.exportSelect.value = '';
+      if (!format || !this.lastOverview || this.lastOverview.colors.length === 0) return;
+      const text = exportPalette(this.lastOverview.colors, format, this.fmtColor);
+      copyWithFeedback(this.exportSelect, text);
+    });
+
     this.setProEnabled(false);
   }
 
-  // §7: grouping the palette by purpose is a Pro feature. The toggle stays
+  // §7: palette grouping and export are Pro features. The controls stay
   // visible but disabled with a tier hint when locked.
   setProEnabled(enabled: boolean) {
     this.proEnabled = enabled;
@@ -65,6 +76,9 @@ export class OverviewView {
     purposeBtn.disabled = !enabled;
     purposeBtn.title = enabled ? 'Group colors by where they are used' : 'Requires PeekCSS Pro';
     purposeBtn.classList.toggle('locked', !enabled);
+    this.exportSelect.disabled = !enabled;
+    this.exportSelect.title = enabled ? 'Export palette' : 'Requires PeekCSS Pro';
+    this.exportSelect.classList.toggle('locked', !enabled);
     if (!enabled && this.groupByPurpose) {
       this.setGroupMode(false);
     }
@@ -377,14 +391,6 @@ export class OverviewView {
       this.downloadAllBtn.textContent = 'Download all';
     }, 1800);
   }
-}
-
-// Assigns a palette color to the purpose it serves most often.
-// Ties favor background > text > border (larger surfaces first).
-function dominantPurpose(c: PaletteColor): ColorPurpose {
-  if (c.background >= c.text && c.background >= c.border) return 'background';
-  if (c.text >= c.border) return 'text';
-  return 'border';
 }
 
 // Green → amber → red depending on how high the score is.

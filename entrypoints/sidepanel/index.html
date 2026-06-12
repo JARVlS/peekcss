@@ -95,6 +95,13 @@
           <div class="block-header">
             <h2>Colors</h2>
             <div class="block-header-actions">
+              <select id="palette-export" class="select select-sm" title="Export palette">
+                <option value="" selected>Export…</option>
+                <option value="css">CSS variables</option>
+                <option value="scss">SCSS variables</option>
+                <option value="json">JSON</option>
+                <option value="tailwind">Tailwind colors</option>
+              </select>
               <div class="segmented segmented-sm" id="colors-group-control">
                 <button type="button" data-group="all" class="active">All</button>
                 <button type="button" data-group="purpose">By purpose</button>
