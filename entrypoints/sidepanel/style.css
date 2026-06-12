@@ -935,3 +935,42 @@ kbd {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+/* Typography view */
+.font-card {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: var(--surface);
+}
+
+.font-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-card-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.font-card-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.font-role-chip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}

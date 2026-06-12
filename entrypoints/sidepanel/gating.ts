@@ -17,6 +17,7 @@ import type { ViewName } from './navigation';
 const VIEW_TIERS: Record<ViewName, UserTier> = {
   inspector: 'anonymous',
   overview: 'free_account',
+  typography: 'free_account',
   settings: 'free_account',
 };
 
@@ -40,6 +41,7 @@ export class GatingController {
   private readonly views: Record<ViewName, HTMLElement> = {
     inspector: document.getElementById('view-inspector')!,
     overview: document.getElementById('view-overview')!,
+    typography: document.getElementById('view-typography')!,
     settings: document.getElementById('view-settings')!,
   };
   private readonly navButtons =

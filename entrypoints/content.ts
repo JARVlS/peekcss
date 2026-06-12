@@ -2,11 +2,14 @@
 import {
   INSPECTOR_PORT,
   type ColorPurpose,
+  type FontRole,
+  type FontUsage,
   type ImageInfo,
   type InspectionData,
   type InspectorMessage,
   type OverviewData,
   type SidepanelMessage,
+  type TypographyData,
 } from '@/utils/messages';
 import {
   type ColorFormat,
@@ -168,6 +171,9 @@ export default defineContentScript({
         } else if (msg.kind === 'scan-overview') {
           const overview: InspectorMessage = { kind: 'overview', data: scanOverview() };
           port.postMessage(overview);
+        } else if (msg.kind === 'scan-typography') {
+          const typography: InspectorMessage = { kind: 'typography', data: scanTypography() };
+          port.postMessage(typography);
         } else if (msg.kind === 'set-color-format') {
           colorFormat = msg.format;
           if (popupEnabled && active && hovered) showPopupFor(hovered);
@@ -566,6 +572,73 @@ function scanOverview(): OverviewData {
   const prominent = sorted.slice(0, 14).map(([color]) => color);
 
   return { colors, images: scanImages(), accessibility: auditAccessibility(prominent) };
+}
+
+// Tag-based role heuristic for the Typography tab. Computed style alone can't
+// recover semantic intent, so we map tags: h1–h6 → heading, form controls and
+// nav/buttons → ui, text-flow tags → body, everything else → other.
+function fontRoleFor(el: Element): FontRole {
+  const tag = el.tagName.toLowerCase();
+  if (/^h[1-6]$/.test(tag)) return 'heading';
+  if (['button', 'input', 'select', 'textarea', 'label', 'option'].includes(tag)) return 'ui';
+  if (['p', 'li', 'td', 'th', 'dd', 'dt', 'blockquote', 'figcaption', 'span', 'a', 'em', 'strong', 'small'].includes(tag)) return 'body';
+  return 'other';
+}
+
+function scanTypography(): TypographyData {
+  type Agg = {
+    count: number;
+    roles: Record<FontRole, number>;
+    sizes: Set<number>;
+    weights: Set<number>;
+  };
+  const families = new Map<string, Agg>();
+
+  const all = document.querySelectorAll('*');
+  const limit = Math.min(all.length, 6000);
+  for (let i = 0; i < limit; i++) {
+    const el = all[i];
+    // Only count elements that directly render text.
+    if (!Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())) {
+      continue;
+    }
+    const cs = window.getComputedStyle(el);
+    // First family in the stack is what the browser tried first; good enough
+    // without expensive per-glyph fallback detection.
+    const family = cs.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+    if (!family) continue;
+
+    let agg = families.get(family);
+    if (!agg) {
+      agg = {
+        count: 0,
+        roles: { heading: 0, body: 0, ui: 0, other: 0 },
+        sizes: new Set(),
+        weights: new Set(),
+      };
+      families.set(family, agg);
+    }
+    agg.count++;
+    agg.roles[fontRoleFor(el)]++;
+    const size = parseFloat(cs.fontSize);
+    if (Number.isFinite(size)) agg.sizes.add(Math.round(size * 100) / 100);
+    const weight = parseInt(cs.fontWeight, 10);
+    if (Number.isFinite(weight)) agg.weights.add(weight);
+  }
+
+  const fonts: FontUsage[] = [...families.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 40)
+    .map(([family, agg]) => ({
+      family,
+      count: agg.count,
+      roles: agg.roles,
+      sizes: [...agg.sizes].sort((a, b) => a - b),
+      weights: [...agg.weights].sort((a, b) => a - b),
+    }));
+
+  const rootFontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+  return { fonts, rootFontSize };
 }
 
 function scanImages(): ImageInfo[] {

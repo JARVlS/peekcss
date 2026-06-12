@@ -115,6 +115,22 @@ export interface OverviewData {
   accessibility: AccessibilityReport;
 }
 
+// Typography tab (§5): font usage per family with a tag-based role heuristic.
+export type FontRole = 'heading' | 'body' | 'ui' | 'other';
+
+export interface FontUsage {
+  family: string;
+  count: number;
+  roles: Record<FontRole, number>;
+  sizes: number[]; // distinct computed px sizes, ascending
+  weights: number[]; // distinct font weights, ascending
+}
+
+export interface TypographyData {
+  fonts: FontUsage[];
+  rootFontSize: number;
+}
+
 // Discriminated union → adding a new message kind forces both sides
 // to handle it. Keeps stringly-typed bugs out.
 
@@ -122,6 +138,7 @@ export interface OverviewData {
 export type InspectorMessage =
   | { kind: 'update'; data: InspectionData }
   | { kind: 'overview'; data: OverviewData }
+  | { kind: 'typography'; data: TypographyData }
   | { kind: 'shortcut'; action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab' }
   | { kind: 'cleared' };
 
@@ -131,7 +148,8 @@ export type SidepanelMessage =
   | { kind: 'set-popup'; enabled: boolean }
   | { kind: 'set-color-format'; format: ColorFormat }
   | { kind: 'set-font-unit'; unit: FontUnit }
-  | { kind: 'scan-overview' };
+  | { kind: 'scan-overview' }
+  | { kind: 'scan-typography' };
 
 // Popup → Background (runtime.sendMessage). Only http(s) URLs are routed here:
 // the background can hand them straight to the downloads API, which fetches

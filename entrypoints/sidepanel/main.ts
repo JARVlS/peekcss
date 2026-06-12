@@ -18,6 +18,7 @@ import { ThemeController } from './theme';
 import { NavigationController } from './navigation';
 import { InspectorView } from './inspectorView';
 import { OverviewView } from './overviewView';
+import { TypographyView } from './typographyView';
 import { GatingController } from './gating';
 
 const toggleBtn = document.getElementById('toggle')!;
@@ -145,8 +146,10 @@ function revokeObjectUrlWhenSettled(downloadId: number, objectUrl: string): void
 const theme = new ThemeController();
 const inspectorView = new InspectorView(fmtColor, fmtLength);
 const overviewView = new OverviewView(fmtColor, downloadAsset, downloadBlobAsset);
+const typographyView = new TypographyView();
 const nav = new NavigationController((view) => {
   if (view === 'overview') requestOverview();
+  else if (view === 'typography') requestTypography();
 });
 
 // §7 tier gating: locked views show a lock panel instead of their content.
@@ -158,6 +161,8 @@ void initUserTier((tier) => {
   // A tab unlocked while open (e.g. dev override changed) needs its data.
   if (nav.currentView === 'overview' && !gating.isViewLocked('overview', tier)) {
     requestOverview();
+  } else if (nav.currentView === 'typography' && !gating.isViewLocked('typography', tier)) {
+    requestTypography();
   }
 }).then((tier) => {
   gating.apply(tier);
@@ -216,6 +221,7 @@ function applyFontUnit(unit: FontUnit) {
   fontUnit = unit;
   fontUnitSelect.value = unit;
   inspectorView.refresh();
+  typographyView.setFontUnit(unit);
   if (port) {
     const msg: SidepanelMessage = { kind: 'set-font-unit', unit };
     port.postMessage(msg);
@@ -293,6 +299,7 @@ async function connect() {
   port.onMessage.addListener((msg: InspectorMessage) => {
     if (msg.kind === 'update') inspectorView.render(msg.data);
     else if (msg.kind === 'overview') overviewView.render(msg.data);
+    else if (msg.kind === 'typography') typographyView.render(msg.data);
     else if (msg.kind === 'shortcut') handleShortcut(msg.action);
   });
 
@@ -314,6 +321,19 @@ async function connect() {
   const unitMsg: SidepanelMessage = { kind: 'set-font-unit', unit: fontUnit };
   port.postMessage(unitMsg);
   if (nav.currentView === 'overview') requestOverview();
+  else if (nav.currentView === 'typography') requestTypography();
+}
+
+function requestTypography() {
+  // Typography is page-level analysis — free-account tier and up (§7).
+  if (!hasTier('free_account')) return;
+  typographyView.showScanning();
+  if (!port) {
+    typographyView.showDisconnected();
+    return;
+  }
+  const msg: SidepanelMessage = { kind: 'scan-typography' };
+  port.postMessage(msg);
 }
 
 function requestOverview() {

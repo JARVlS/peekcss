@@ -1,8 +1,8 @@
-const VIEW_ORDER = ['inspector', 'overview', 'settings'] as const;
+const VIEW_ORDER = ['inspector', 'overview', 'typography', 'settings'] as const;
 export type ViewName = (typeof VIEW_ORDER)[number];
 
 // Manages the bottom navigation bar: switching between the inspector,
-// overview, and settings views, and cycling through them.
+// overview, typography, and settings views, and cycling through them.
 export class NavigationController {
   private readonly navButtons: NodeListOf<HTMLButtonElement>;
   private readonly views: Record<ViewName, HTMLElement>;
@@ -13,6 +13,7 @@ export class NavigationController {
     this.views = {
       inspector: document.getElementById('view-inspector')!,
       overview: document.getElementById('view-overview')!,
+      typography: document.getElementById('view-typography')!,
       settings: document.getElementById('view-settings')!,
     };
     this.navButtons.forEach((btn) => {
