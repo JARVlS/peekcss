@@ -92,20 +92,31 @@ utils/
 
 ## **4\. Existing features (baseline — already implemented)**
 
-* Three sub-tabs: **Inspector**, **Overview**, **Settings**  
-* **Inspector**  
+* Four sub-tabs: **Inspector**, **Overview**, **Typography**, **Settings**  
+* **Inspector** *(anonymous)*  
   * Point-and-click to inspect  
   * Loads relevant CSS for the selected element  
-  * Shows spacing and contrast  
-  * Copy whole CSS, selected groups, or single values  
-* **Overview**  
+  * Shows spacing and contrast (numeric ratio \+ AA/AAA pass/fail)  
+  * Copy whole CSS, selected groups, or single values — with inline "Copied ✓" feedback  
+  * Empty-container hover resolves down to the nearest visible child  
+* **Overview** *(free account)*  
   * Contrast / web-accessibility score  
   * Lists potential contrast issues  
-  * Shows all images on the page, with instant download  
-* **Settings**  
+  * Color palette with per-purpose tallies; "By purpose" grouping *(Pro)*  
+  * Palette export: CSS variables, SCSS, JSON, Tailwind *(Pro)*  
+  * Shows all images on the page, with instant download; "Download all" as ZIP with sequential fallback *(Pro)*  
+* **Typography** *(free account)*  
+  * All fonts used on the page, with weights, sizes, and usage counts  
+  * Sort by usage or by role (heading / body / UI heuristic)  
+* **Settings** *(free account)*  
   * Light/dark mode toggle  
   * Preferred color format  
-  * Keyboard shortcut reference
+  * Font unit preference (px / rem / pt), applied app-wide  
+  * Keyboard shortcut reference  
+  * Dev builds: tier override selector  
+* **Tier gating** (§7) — `utils/tier.ts` \+ `gating.ts`; locked views/features shown disabled with lock icon \+ tier hint; default tier `anonymous`; dev override via `devTierOverride` storage key
+
+Status of §5/§6: all items shipped except **font pairing suggestions** (blocked on §9: API choice \+ privacy copy) and the items already moved to §9 (detachable sidebar, dock position). PDF/ASE palette export remains a stretch goal.
 
 ---
 
