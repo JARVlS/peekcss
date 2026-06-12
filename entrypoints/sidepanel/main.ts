@@ -82,6 +82,10 @@ async function downloadViaBackground(url: string, filename: string): Promise<Dow
 // first, which the API accepts.
 async function downloadViaObjectUrl(url: string, filename: string): Promise<void> {
   const blob = url.startsWith('data:') ? dataUrlToBlob(url) : await fetchBlobFromUrl(url);
+  await downloadBlob(blob, filename);
+}
+
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
   const finalName = applyBlobExtension(filename, blob.type);
   const objectUrl = URL.createObjectURL(blob);
 
@@ -95,6 +99,19 @@ async function downloadViaObjectUrl(url: string, filename: string): Promise<void
   }
 
   revokeObjectUrlWhenSettled(downloadId, objectUrl);
+}
+
+// Outcome-reporting wrapper for callers that hold a Blob already (e.g. the
+// ZIP bundle built by the overview's "Download all").
+async function downloadBlobAsset(blob: Blob, filename: string): Promise<DownloadOutcome> {
+  try {
+    await downloadBlob(blob, filename);
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[PeekCSS] blob download failed:', message, filename);
+    return { ok: false, error: message };
+  }
 }
 
 async function fetchBlobFromUrl(blobUrl: string): Promise<Blob> {
@@ -127,7 +144,7 @@ function revokeObjectUrlWhenSettled(downloadId: number, objectUrl: string): void
 
 const theme = new ThemeController();
 const inspectorView = new InspectorView(fmtColor, fmtLength);
-const overviewView = new OverviewView(fmtColor, downloadAsset);
+const overviewView = new OverviewView(fmtColor, downloadAsset, downloadBlobAsset);
 const nav = new NavigationController((view) => {
   if (view === 'overview') requestOverview();
 });

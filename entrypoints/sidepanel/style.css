@@ -929,3 +929,9 @@ kbd {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+.copy-btn.locked,
+.copy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

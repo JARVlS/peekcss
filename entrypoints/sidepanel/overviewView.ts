@@ -9,6 +9,7 @@ import type {
 import { copyWithFeedback } from '@/utils/clipboard';
 import { type DownloadOutcome, filenameForAsset } from '@/utils/download';
 import { dominantPurpose, exportPalette, type PaletteExportFormat } from '@/utils/palette';
+import { buildZip, fetchImageBytes, type ZipEntry } from '@/utils/zipExport';
 
 // Renders the overview view: the page-wide accessibility audit, the list of
 // contrast issues, the palette of colors, and the grid of images found on
@@ -45,6 +46,8 @@ export class OverviewView {
     // Downloads the given asset; resolves with success or a failure reason so
     // the card can surface a per-image error instead of failing silently.
     private readonly onDownloadImage: (url: string, filename: string) => Promise<DownloadOutcome>,
+    // Downloads an in-memory blob (the ZIP bundle) via the downloads API.
+    private readonly onDownloadBlob: (blob: Blob, filename: string) => Promise<DownloadOutcome>,
   ) {
     this.downloadAllBtn.addEventListener('click', () => {
       void this.downloadAll();
@@ -79,6 +82,12 @@ export class OverviewView {
     this.exportSelect.disabled = !enabled;
     this.exportSelect.title = enabled ? 'Export palette' : 'Requires PeekCSS Pro';
     this.exportSelect.classList.toggle('locked', !enabled);
+    // §7: bulk image download (ZIP) is Pro; single-image download stays free.
+    this.downloadAllBtn.disabled = !enabled;
+    this.downloadAllBtn.title = enabled
+      ? 'Download all images as a ZIP'
+      : 'Requires PeekCSS Pro';
+    this.downloadAllBtn.classList.toggle('locked', !enabled);
     if (!enabled && this.groupByPurpose) {
       this.setGroupMode(false);
     }
@@ -122,7 +131,7 @@ export class OverviewView {
     });
 
     this.downloadAllBtn.hidden = d.images.length === 0;
-    this.downloadAllBtn.disabled = false;
+    this.downloadAllBtn.disabled = !this.proEnabled;
     this.downloadAllBtn.textContent = 'Download all';
   }
 
@@ -363,24 +372,42 @@ export class OverviewView {
     return card;
   }
 
-  // Downloads every listed image one at a time. Sequential is deliberate:
-  //   - Firefox throttles bursts of programmatic downloads, so a parallel fan-out
-  //     can silently drop some.
-  //   - For data:/blob: assets each download owns an object URL that must outlive
-  //     only its own download; serial execution keeps revocation from racing a
-  //     different in-flight download.
-  // Tradeoff: it is slower on pages with many large images. If that ever matters,
-  // a small bounded concurrency pool (e.g. 2-3 at a time) is the safe upgrade.
+  // Bundles every listed image into one ZIP (§5: ZIP preferred). Images whose
+  // bytes can't be read from the sidebar (cross-origin fetches blocked by
+  // CORS — we ship no host permissions) fall back to sequential direct
+  // downloads via the downloads API, which fetches with browser privileges.
+  // Sequential is deliberate for the fallback: Firefox throttles bursts of
+  // programmatic downloads, and serial execution keeps object-URL revocation
+  // from racing other in-flight downloads.
   private async downloadAll(): Promise<void> {
-    const triggers = this.imageTriggers;
-    if (triggers.length === 0) return;
+    const overview = this.lastOverview;
+    if (!overview || overview.images.length === 0 || !this.proEnabled) return;
 
     this.downloadAllBtn.disabled = true;
-    let failures = 0;
+    const total = overview.images.length;
+    const entries: ZipEntry[] = [];
+    const fallbacks: number[] = [];
 
-    for (let i = 0; i < triggers.length; i++) {
-      this.downloadAllBtn.textContent = `Downloading ${i + 1}/${triggers.length}\u2026`;
-      const outcome = await triggers[i]();
+    for (let i = 0; i < total; i++) {
+      this.downloadAllBtn.textContent = `Fetching ${i + 1}/${total}\u2026`;
+      const bytes = await fetchImageBytes(overview.images[i].src);
+      if (bytes) {
+        entries.push({ name: filenameForAsset(overview.images[i].src, i), data: bytes });
+      } else {
+        fallbacks.push(i);
+      }
+    }
+
+    let failures = 0;
+    if (entries.length > 0) {
+      this.downloadAllBtn.textContent = 'Zipping\u2026';
+      const outcome = await this.onDownloadBlob(buildZip(entries), 'peekcss-images.zip');
+      if (!outcome.ok) failures += entries.length;
+    }
+
+    for (let i = 0; i < fallbacks.length; i++) {
+      this.downloadAllBtn.textContent = `Downloading ${i + 1}/${fallbacks.length}\u2026`;
+      const outcome = await this.imageTriggers[fallbacks[i]]();
       if (!outcome.ok) failures++;
     }
 
