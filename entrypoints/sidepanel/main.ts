@@ -12,6 +12,7 @@ import {
 import { type ColorFormat, COLOR_FORMATS, formatColor } from '@/utils/color';
 import { applyBlobExtension, dataUrlToBlob, type DownloadOutcome } from '@/utils/download';
 import { hasTier, initUserTier } from '@/utils/tier';
+import { colorFormatItem } from '@/utils/storage';
 import { ThemeController } from './theme';
 import { NavigationController } from './navigation';
 import { InspectorView } from './inspectorView';
@@ -178,12 +179,11 @@ function applyColorFormat(format: ColorFormat) {
 colorFormatSelect.addEventListener('change', () => {
   const format = colorFormatSelect.value as ColorFormat;
   applyColorFormat(format);
-  browser.storage.local.set({ colorFormat: format });
+  void colorFormatItem.setValue(format);
 });
 
-browser.storage.local.get('colorFormat').then((res) => {
-  const stored = res.colorFormat as ColorFormat | undefined;
-  applyColorFormat(stored && COLOR_FORMATS.includes(stored) ? stored : 'hex');
+void colorFormatItem.getValue().then((stored) => {
+  applyColorFormat(COLOR_FORMATS.includes(stored) ? stored : 'hex');
 });
 
 // Keyboard shortcuts (q=cycle tabs, w=inspector, e=hover popup, n=theme)

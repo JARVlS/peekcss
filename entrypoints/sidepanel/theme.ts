@@ -1,4 +1,4 @@
-type Theme = 'light' | 'dark';
+import { themeItem, type Theme } from '@/utils/storage';
 
 // Manages the light/dark theme: the segmented control in Settings,
 // persistence to storage, and applying the theme to the document.
@@ -12,9 +12,7 @@ export class ThemeController {
     this.buttons.forEach((btn) => {
       btn.addEventListener('click', () => this.set(btn.dataset.theme as Theme));
     });
-    browser.storage.local.get('theme').then((res) => {
-      this.apply(res.theme === 'light' ? 'light' : 'dark');
-    });
+    void themeItem.getValue().then((theme) => this.apply(theme));
   }
 
   private apply(theme: Theme) {
@@ -25,7 +23,7 @@ export class ThemeController {
 
   set(theme: Theme) {
     this.apply(theme);
-    browser.storage.local.set({ theme });
+    void themeItem.setValue(theme);
   }
 
   toggle() {
