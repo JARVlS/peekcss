@@ -12,7 +12,8 @@ import {
 import { type ColorFormat, COLOR_FORMATS, formatColor } from '@/utils/color';
 import { applyBlobExtension, dataUrlToBlob, type DownloadOutcome } from '@/utils/download';
 import { hasTier, initUserTier } from '@/utils/tier';
-import { colorFormatItem } from '@/utils/storage';
+import { colorFormatItem, fontUnitItem } from '@/utils/storage';
+import { FONT_UNITS, formatFontLength, type FontUnit } from '@/utils/fontUnit';
 import { ThemeController } from './theme';
 import { NavigationController } from './navigation';
 import { InspectorView } from './inspectorView';
@@ -26,14 +27,17 @@ const popupToggleBtn = document.getElementById('popup-toggle')!;
 const popupIconOn = document.getElementById('popup-icon-on')!;
 const popupIconOff = document.getElementById('popup-icon-off')!;
 const colorFormatSelect = document.getElementById('color-format') as HTMLSelectElement;
+const fontUnitSelect = document.getElementById('font-unit') as HTMLSelectElement;
 
 let port: ReturnType<typeof browser.tabs.connect> | undefined;
 let generation = 0;
 let inspectorActive = true;
 let popupEnabled = false;
 let colorFormat: ColorFormat = 'hex';
+let fontUnit: FontUnit = 'px';
 
 const fmtColor = (c: string) => formatColor(c, colorFormat);
+const fmtLength = (v: string, rootPx: number) => formatFontLength(v, fontUnit, rootPx);
 
 // Routes a single asset download. The popup is the right place for this:
 //   - It is a privileged DOM context, so it can call browser.downloads.download
@@ -122,7 +126,7 @@ function revokeObjectUrlWhenSettled(downloadId: number, objectUrl: string): void
 }
 
 const theme = new ThemeController();
-const inspectorView = new InspectorView(fmtColor);
+const inspectorView = new InspectorView(fmtColor, fmtLength);
 const overviewView = new OverviewView(fmtColor, downloadAsset);
 const nav = new NavigationController((view) => {
   if (view === 'overview') requestOverview();
@@ -184,6 +188,27 @@ colorFormatSelect.addEventListener('change', () => {
 
 void colorFormatItem.getValue().then((stored) => {
   applyColorFormat(COLOR_FORMATS.includes(stored) ? stored : 'hex');
+});
+
+// Font unit preference (applied across the whole app, §5 Settings)
+function applyFontUnit(unit: FontUnit) {
+  fontUnit = unit;
+  fontUnitSelect.value = unit;
+  inspectorView.refresh();
+  if (port) {
+    const msg: SidepanelMessage = { kind: 'set-font-unit', unit };
+    port.postMessage(msg);
+  }
+}
+
+fontUnitSelect.addEventListener('change', () => {
+  const unit = fontUnitSelect.value as FontUnit;
+  applyFontUnit(unit);
+  void fontUnitItem.setValue(unit);
+});
+
+void fontUnitItem.getValue().then((stored) => {
+  applyFontUnit(FONT_UNITS.includes(stored) ? stored : 'px');
 });
 
 // Keyboard shortcuts (q=cycle tabs, w=inspector, e=hover popup, n=theme)
@@ -265,6 +290,8 @@ async function connect() {
   }
   const fmtMsg: SidepanelMessage = { kind: 'set-color-format', format: colorFormat };
   port.postMessage(fmtMsg);
+  const unitMsg: SidepanelMessage = { kind: 'set-font-unit', unit: fontUnit };
+  port.postMessage(unitMsg);
   if (nav.currentView === 'overview') requestOverview();
 }
 

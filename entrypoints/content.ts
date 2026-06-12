@@ -18,6 +18,7 @@ import {
   wcagLevels,
 } from '@/utils/color';
 import { auditAccessibility, effectiveBackground } from '@/utils/audit';
+import { formatFontLength, type FontUnit } from '@/utils/fontUnit';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -31,6 +32,7 @@ export default defineContentScript({
       let active = true;
       let popupEnabled = false;
       let colorFormat: ColorFormat = 'hex';
+      let fontUnit: FontUnit = 'px';
       let lastX = 0;
       let lastY = 0;
 
@@ -42,7 +44,7 @@ export default defineContentScript({
           popup.host.contains(el));
 
       const showPopupFor = (target: Element) => {
-        popup.setContent(read(target), colorFormat);
+        popup.setContent(read(target), colorFormat, fontUnit);
         popup.show();
         popup.position(lastX, lastY);
       };
@@ -162,6 +164,9 @@ export default defineContentScript({
           port.postMessage(overview);
         } else if (msg.kind === 'set-color-format') {
           colorFormat = msg.format;
+          if (popupEnabled && active && hovered) showPopupFor(hovered);
+        } else if (msg.kind === 'set-font-unit') {
+          fontUnit = msg.unit;
           if (popupEnabled && active && hovered) showPopupFor(hovered);
         }
       });
@@ -304,7 +309,8 @@ function createPopup() {
 
   return {
     host,
-    setContent(d: InspectionData, colorFormat: ColorFormat) {
+    setContent(d: InspectionData, colorFormat: ColorFormat, fontUnit: FontUnit) {
+      const fmtLen = (v: string) => formatFontLength(v, fontUnit, d.rootFontSize);
       const sel =
         esc(d.selector.tag) +
         (d.selector.id ? `#${esc(d.selector.id)}` : '') +
@@ -314,10 +320,10 @@ function createPopup() {
         ['size', `${d.dimensions.width} \u00d7 ${d.dimensions.height}`],
         ['display', d.layout.display],
         ['position', d.layout.position],
-        ['font', `${d.typography.fontSize} / ${d.typography.fontWeight}`],
+        ['font', `${fmtLen(d.typography.fontSize)} / ${d.typography.fontWeight}`],
         ['family', d.typography.fontFamily],
-        ['line-height', d.typography.lineHeight],
-        ['letter-spacing', d.typography.letterSpacing],
+        ['line-height', fmtLen(d.typography.lineHeight)],
+        ['letter-spacing', fmtLen(d.typography.letterSpacing)],
         ['color', formatColor(d.typography.color, colorFormat), true],
         ['background', formatColor(d.background.color, colorFormat), true],
       ];
@@ -391,6 +397,8 @@ function read(el: Element): InspectionData {
       classes: Array.from(el.classList),
     },
     dimensions: { width: Math.round(rect.width), height: Math.round(rect.height) },
+    rootFontSize:
+      parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16,
     typography: {
       fontFamily: cs.fontFamily,
       fontSize: cs.fontSize,

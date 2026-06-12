@@ -16,7 +16,12 @@ export class InspectorView {
   private fullCss = '';
   private lastData: InspectionData | null = null;
 
-  constructor(private readonly fmtColor: (c: string) => string) {
+  constructor(
+    private readonly fmtColor: (c: string) => string,
+    // Converts a computed px length into the preferred font unit; needs the
+    // inspected page's root font size for rem.
+    private readonly fmtLength: (v: string, rootPx: number) => string,
+  ) {
     document.querySelectorAll<HTMLButtonElement>('.copy-section').forEach((btn) => {
       btn.addEventListener('click', () => {
         const items = this.sectionData[btn.dataset.section!];
@@ -60,12 +65,13 @@ export class InspectorView {
     dimEl.onclick = () =>
       copyWithFeedback(dimEl, `width: ${d.dimensions.width}px;\nheight: ${d.dimensions.height}px;`);
 
+    const fmtLen = (v: string) => this.fmtLength(v, d.rootFontSize || 16);
     const typoItems: Array<[string, string]> = [
       ['font-family', d.typography.fontFamily],
-      ['font-size', d.typography.fontSize],
+      ['font-size', fmtLen(d.typography.fontSize)],
       ['font-weight', d.typography.fontWeight],
-      ['line-height', d.typography.lineHeight],
-      ['letter-spacing', d.typography.letterSpacing],
+      ['line-height', fmtLen(d.typography.lineHeight)],
+      ['letter-spacing', fmtLen(d.typography.letterSpacing)],
       ['color', this.fmtColor(d.typography.color)],
     ];
     this.sectionData['typo'] = typoItems;

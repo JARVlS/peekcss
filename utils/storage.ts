@@ -5,6 +5,7 @@
 // carries over. Account/license state lives in utils/tier.ts.
 import { storage } from 'wxt/utils/storage';
 import type { ColorFormat } from './color';
+import type { FontUnit } from './fontUnit';
 
 export type Theme = 'light' | 'dark';
 
@@ -14,4 +15,8 @@ export const themeItem = storage.defineItem<Theme>('local:theme', {
 
 export const colorFormatItem = storage.defineItem<ColorFormat>('local:colorFormat', {
   fallback: 'hex',
+});
+
+export const fontUnitItem = storage.defineItem<FontUnit>('local:fontUnit', {
+  fallback: 'px',
 });

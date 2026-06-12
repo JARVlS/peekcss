@@ -1,10 +1,13 @@
 export const INSPECTOR_PORT = 'peekcss:inspector';
 
 import type { ColorFormat } from './color';
+import type { FontUnit } from './fontUnit';
 
 export interface InspectionData {
   selector: { tag: string; id: string | null; classes: string[] };
   dimensions: { width: number; height: number };
+  // Root font size of the inspected page, used for px → rem conversion.
+  rootFontSize: number;
   typography: {
     fontFamily: string;
     fontSize: string;
@@ -115,6 +118,7 @@ export type SidepanelMessage =
   | { kind: 'set-active'; active: boolean }
   | { kind: 'set-popup'; enabled: boolean }
   | { kind: 'set-color-format'; format: ColorFormat }
+  | { kind: 'set-font-unit'; unit: FontUnit }
   | { kind: 'scan-overview' };
 
 // Popup → Background (runtime.sendMessage). Only http(s) URLs are routed here:
