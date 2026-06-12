@@ -1,6 +1,7 @@
 // entrypoints/content.ts
 import {
   INSPECTOR_PORT,
+  type ColorPurpose,
   type ImageInfo,
   type InspectionData,
   type InspectorMessage,
@@ -532,29 +533,36 @@ function computeContrast(el: Element, cs: CSSStyleDeclaration): InspectionData['
 }
 
 function scanOverview(): OverviewData {
-  const counts = new Map<string, number>();
-  const addColor = (raw: string) => {
+  type Tally = { count: number; text: number; background: number; border: number };
+  const counts = new Map<string, Tally>();
+  const addColor = (raw: string, purpose: ColorPurpose) => {
     const c = parseColor(raw);
     if (!c || c.a === 0) return;
     const key = formatRgba(c, 'rgb');
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    let entry = counts.get(key);
+    if (!entry) {
+      entry = { count: 0, text: 0, background: 0, border: 0 };
+      counts.set(key, entry);
+    }
+    entry.count++;
+    entry[purpose]++;
   };
 
   const all = document.querySelectorAll('*');
   const limit = Math.min(all.length, 6000);
   for (let i = 0; i < limit; i++) {
     const cs = window.getComputedStyle(all[i]);
-    addColor(cs.color);
-    addColor(cs.backgroundColor);
-    addColor(cs.borderTopColor);
-    addColor(cs.borderBottomColor);
-    addColor(cs.borderLeftColor);
-    addColor(cs.borderRightColor);
-    addColor(cs.outlineColor);
+    addColor(cs.color, 'text');
+    addColor(cs.backgroundColor, 'background');
+    addColor(cs.borderTopColor, 'border');
+    addColor(cs.borderBottomColor, 'border');
+    addColor(cs.borderLeftColor, 'border');
+    addColor(cs.borderRightColor, 'border');
+    addColor(cs.outlineColor, 'border');
   }
 
-  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  const colors = sorted.slice(0, 120).map(([color]) => color);
+  const sorted = [...counts.entries()].sort((a, b) => b[1].count - a[1].count);
+  const colors = sorted.slice(0, 120).map(([color, tally]) => ({ color, ...tally }));
   const prominent = sorted.slice(0, 14).map(([color]) => color);
 
   return { colors, images: scanImages(), accessibility: auditAccessibility(prominent) };

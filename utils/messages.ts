@@ -44,6 +44,18 @@ export interface InspectionData {
   allCss: string;
 }
 
+export type ColorPurpose = 'text' | 'background' | 'border';
+
+// One palette entry with usage counts per CSS purpose (§5: rule-based
+// grouping by the properties the color came from).
+export interface PaletteColor {
+  color: string;
+  count: number;
+  text: number;
+  background: number;
+  border: number;
+}
+
 export interface ImageInfo {
   src: string;
   thumb: string;
@@ -98,7 +110,7 @@ export interface AccessibilityReport {
 }
 
 export interface OverviewData {
-  colors: string[];
+  colors: PaletteColor[];
   images: ImageInfo[];
   accessibility: AccessibilityReport;
 }

@@ -1,4 +1,11 @@
-import type { AccessibilityReport, ContrastIssue, ImageInfo, OverviewData } from '@/utils/messages';
+import type {
+  AccessibilityReport,
+  ColorPurpose,
+  ContrastIssue,
+  ImageInfo,
+  OverviewData,
+  PaletteColor,
+} from '@/utils/messages';
 import { copyWithFeedback } from '@/utils/clipboard';
 import { type DownloadOutcome, filenameForAsset } from '@/utils/download';
 
@@ -14,12 +21,18 @@ export class OverviewView {
   private readonly issuesEl = document.getElementById('contrast-issues')!;
   private readonly issuesCountEl = document.getElementById('contrast-issues-count')!;
   private readonly colorsGridEl = document.getElementById('colors-grid')!;
+  private readonly colorsGroupsEl = document.getElementById('colors-groups') as HTMLElement;
+  private readonly groupButtons = document
+    .getElementById('colors-group-control')!
+    .querySelectorAll<HTMLButtonElement>('button');
   private readonly imagesGridEl = document.getElementById('images-grid')!;
   private readonly downloadAllBtn = document.getElementById('images-download-all') as HTMLButtonElement;
   private readonly colorsCountEl = document.getElementById('colors-count')!;
   private readonly imagesCountEl = document.getElementById('images-count')!;
 
   private lastOverview: OverviewData | null = null;
+  private groupByPurpose = false;
+  private proEnabled = false;
 
   // One entry per rendered image card. "Download all" replays these triggers
   // sequentially, and each trigger also drives its own card's button UI.
@@ -34,6 +47,35 @@ export class OverviewView {
     this.downloadAllBtn.addEventListener('click', () => {
       void this.downloadAll();
     });
+
+    this.groupButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        this.setGroupMode(btn.dataset.group === 'purpose');
+      });
+    });
+    this.setProEnabled(false);
+  }
+
+  // §7: grouping the palette by purpose is a Pro feature. The toggle stays
+  // visible but disabled with a tier hint when locked.
+  setProEnabled(enabled: boolean) {
+    this.proEnabled = enabled;
+    const purposeBtn = [...this.groupButtons].find((b) => b.dataset.group === 'purpose')!;
+    purposeBtn.disabled = !enabled;
+    purposeBtn.title = enabled ? 'Group colors by where they are used' : 'Requires PeekCSS Pro';
+    purposeBtn.classList.toggle('locked', !enabled);
+    if (!enabled && this.groupByPurpose) {
+      this.setGroupMode(false);
+    }
+  }
+
+  private setGroupMode(byPurpose: boolean) {
+    this.groupByPurpose = byPurpose && this.proEnabled;
+    this.groupButtons.forEach((b) =>
+      b.classList.toggle('active', (b.dataset.group === 'purpose') === this.groupByPurpose),
+    );
+    if (this.lastOverview) this.renderColors(this.lastOverview.colors);
   }
 
   setStatus(text: string) {
@@ -56,22 +98,7 @@ export class OverviewView {
     this.renderContrastIssues(d.accessibility.contrast.issues);
 
     this.colorsCountEl.textContent = String(d.colors.length);
-    this.colorsGridEl.replaceChildren();
-    for (const color of d.colors) {
-      const formatted = this.fmtColor(color);
-      const cell = document.createElement('button');
-      cell.className = 'color-cell';
-      cell.title = `${formatted} — click to copy`;
-      const sw = document.createElement('span');
-      sw.className = 'color-chip';
-      sw.style.background = color;
-      const label = document.createElement('span');
-      label.className = 'color-label';
-      label.textContent = formatted;
-      cell.append(sw, label);
-      cell.addEventListener('click', () => copyWithFeedback(cell, formatted));
-      this.colorsGridEl.append(cell);
-    }
+    this.renderColors(d.colors);
 
     this.imagesCountEl.textContent = String(d.images.length);
     this.imagesGridEl.replaceChildren();
@@ -83,6 +110,56 @@ export class OverviewView {
     this.downloadAllBtn.hidden = d.images.length === 0;
     this.downloadAllBtn.disabled = false;
     this.downloadAllBtn.textContent = 'Download all';
+  }
+
+  private renderColors(palette: PaletteColor[]) {
+    if (!this.groupByPurpose) {
+      this.colorsGroupsEl.hidden = true;
+      this.colorsGridEl.hidden = false;
+      this.colorsGridEl.replaceChildren();
+      for (const entry of palette) this.colorsGridEl.append(this.buildColorCell(entry));
+      return;
+    }
+
+    this.colorsGridEl.hidden = true;
+    this.colorsGroupsEl.hidden = false;
+    this.colorsGroupsEl.replaceChildren();
+
+    const groups: Record<ColorPurpose, PaletteColor[]> = { background: [], text: [], border: [] };
+    for (const entry of palette) groups[dominantPurpose(entry)].push(entry);
+
+    const titles: Record<ColorPurpose, string> = {
+      background: 'Background',
+      text: 'Text',
+      border: 'Border',
+    };
+    for (const purpose of ['background', 'text', 'border'] as ColorPurpose[]) {
+      const entries = groups[purpose];
+      if (entries.length === 0) continue;
+      const title = document.createElement('h3');
+      title.className = 'palette-group-title';
+      title.textContent = `${titles[purpose]} (${entries.length})`;
+      const grid = document.createElement('div');
+      grid.className = 'colors-grid';
+      for (const entry of entries) grid.append(this.buildColorCell(entry));
+      this.colorsGroupsEl.append(title, grid);
+    }
+  }
+
+  private buildColorCell(entry: PaletteColor): HTMLElement {
+    const formatted = this.fmtColor(entry.color);
+    const cell = document.createElement('button');
+    cell.className = 'color-cell';
+    cell.title = `${formatted} — text ×${entry.text} · bg ×${entry.background} · border ×${entry.border} — click to copy`;
+    const sw = document.createElement('span');
+    sw.className = 'color-chip';
+    sw.style.background = entry.color;
+    const label = document.createElement('span');
+    label.className = 'color-label';
+    label.textContent = formatted;
+    cell.append(sw, label);
+    cell.addEventListener('click', () => copyWithFeedback(cell, formatted));
+    return cell;
   }
 
   private renderAccessibility(report: AccessibilityReport) {
@@ -300,6 +377,14 @@ export class OverviewView {
       this.downloadAllBtn.textContent = 'Download all';
     }, 1800);
   }
+}
+
+// Assigns a palette color to the purpose it serves most often.
+// Ties favor background > text > border (larger surfaces first).
+function dominantPurpose(c: PaletteColor): ColorPurpose {
+  if (c.background >= c.text && c.background >= c.border) return 'background';
+  if (c.text >= c.border) return 'text';
+  return 'border';
 }
 
 // Green → amber → red depending on how high the score is.

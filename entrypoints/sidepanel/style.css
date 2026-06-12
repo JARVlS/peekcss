@@ -887,3 +887,34 @@ kbd {
   75% { opacity: 1; transform: translate(-50%, -115%); }
   100% { opacity: 0; transform: translate(-50%, -140%); }
 }
+
+/* Palette grouping (§5 Overview) */
+.block-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmented-sm button {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.segmented button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.segmented button.locked::after {
+  content: ' \1F512';
+  font-size: 8px;
+}
+
+.palette-group-title {
+  margin: 8px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}

@@ -92,8 +92,18 @@
           <div id="contrast-issues"></div>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Colors</h2><span id="colors-count" class="count-badge"></span></div>
+          <div class="block-header">
+            <h2>Colors</h2>
+            <div class="block-header-actions">
+              <div class="segmented segmented-sm" id="colors-group-control">
+                <button type="button" data-group="all" class="active">All</button>
+                <button type="button" data-group="purpose">By purpose</button>
+              </div>
+              <span id="colors-count" class="count-badge"></span>
+            </div>
+          </div>
           <div id="colors-grid" class="colors-grid"></div>
+          <div id="colors-groups" hidden></div>
         </div>
         <div class="block">
           <div class="block-header"><h2>Images</h2><span id="images-count" class="count-badge"></span></div>
