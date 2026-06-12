@@ -51,8 +51,10 @@ export default defineContentScript({
 
       const onMouseOver = (e: MouseEvent) => {
         if (!active) return;
-        const target = e.target as Element | null;
-        if (!target || isOurs(target) || target === hovered) return;
+        const raw = e.target as Element | null;
+        if (!raw || isOurs(raw)) return;
+        const target = resolveHoverTarget(raw, e.clientX, e.clientY, isOurs);
+        if (target === hovered) return;
         hovered = target;
         highlight.setTarget(target);
         if (popupEnabled) showPopupFor(target);
@@ -74,11 +76,14 @@ export default defineContentScript({
 
       const onClick = (e: MouseEvent) => {
         if (!active) return;
-        const target = e.target as Element | null;
-        if (!target || isOurs(target)) return;
+        const raw = e.target as Element | null;
+        if (!raw || isOurs(raw)) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        // Resolve the same way as hover so the inspected element matches the
+        // highlighted one.
+        const target = resolveHoverTarget(raw, e.clientX, e.clientY, isOurs);
         const msg: InspectorMessage = { kind: 'update', data: read(target) };
         port.postMessage(msg);
       };
@@ -385,6 +390,73 @@ function createPopup() {
       host.remove();
     },
   };
+}
+
+// Elements that always count as content, even with no text inside.
+const VISUAL_TAGS = new Set([
+  'IMG', 'SVG', 'VIDEO', 'CANVAS', 'PICTURE', 'INPUT', 'TEXTAREA', 'SELECT',
+  'BUTTON', 'IFRAME', 'OBJECT', 'EMBED', 'AUDIO', 'HR',
+]);
+
+// §6 rework: hovering sometimes lands on an empty wrapper that covers its
+// children. When the hovered element has no content of its own, walk down —
+// one level at a time — to the nearest child under the cursor that does.
+// Children are matched by bounding rect, so pointer-events:none children are
+// reachable too. Blank areas (no child under the cursor) keep the wrapper.
+function resolveHoverTarget(
+  el: Element,
+  x: number,
+  y: number,
+  exclude: (el: Element | null) => boolean,
+): Element {
+  let current = el;
+  for (let depth = 0; depth < 10 && isEmptyContainer(current); depth++) {
+    const next = childAtPoint(current, x, y, exclude);
+    if (!next) break;
+    current = next;
+  }
+  return current;
+}
+
+function childAtPoint(
+  parent: Element,
+  x: number,
+  y: number,
+  exclude: (el: Element | null) => boolean,
+): Element | null {
+  let best: Element | null = null;
+  for (const child of Array.from(parent.children)) {
+    if (exclude(child)) continue;
+    const r = child.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+      best = child; // later siblings paint on top, so last match wins
+    }
+  }
+  return best;
+}
+
+// "Empty" = no direct text nodes and nothing visually its own (background,
+// border, shadow, or a replaced/visual element).
+function isEmptyContainer(el: Element): boolean {
+  if (VISUAL_TAGS.has(el.tagName.toUpperCase())) return false;
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) return false;
+  }
+  const cs = window.getComputedStyle(el);
+  if (cs.backgroundImage !== 'none') return false;
+  const bg = parseColor(cs.backgroundColor);
+  if (bg && bg.a > 0) return false;
+  if (cs.boxShadow !== 'none') return false;
+  if (
+    parseFloat(cs.borderTopWidth) > 0 ||
+    parseFloat(cs.borderRightWidth) > 0 ||
+    parseFloat(cs.borderBottomWidth) > 0 ||
+    parseFloat(cs.borderLeftWidth) > 0
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function read(el: Element): InspectionData {
