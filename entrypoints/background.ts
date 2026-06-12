@@ -1,11 +1,17 @@
 // entrypoints/background.ts
 import type { DownloadRequest, DownloadResult } from '@/utils/messages';
 
+// sidebarAction is Firefox-only, so it is absent from WXT's cross-browser
+// browser type. Typed here as optional rather than cast at the call site.
+const firefoxBrowser = browser as typeof browser & {
+  sidebarAction?: { toggle(): Promise<void> | void };
+};
+
 export default defineBackground(() => {
   // Toolbar icon click → toggle sidebar.
   // Chrome branch (sidePanel API) goes here when we port to Chrome.
   browser.action.onClicked.addListener(() => {
-    browser.sidebarAction.toggle();
+    firefoxBrowser.sidebarAction?.toggle();
   });
 
   // http(s) image downloads are routed here so they use the privileged
