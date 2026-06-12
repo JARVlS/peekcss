@@ -29,7 +29,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 #app {
@@ -43,7 +43,7 @@ body {
 
 header h1 {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -84,7 +84,7 @@ header h1 {
 header p {
   margin: 4px 0 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .block {
@@ -863,4 +863,27 @@ kbd {
 
 .nav-btn {
   position: relative;
+}
+
+/* Inline copy confirmation (§6) */
+.copy-feedback {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  animation: copy-pop 0.9s ease forwards;
+}
+
+@keyframes copy-pop {
+  0% { opacity: 0; transform: translate(-50%, -90%); }
+  15% { opacity: 1; transform: translate(-50%, -115%); }
+  75% { opacity: 1; transform: translate(-50%, -115%); }
+  100% { opacity: 0; transform: translate(-50%, -140%); }
 }
