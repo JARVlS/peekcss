@@ -12,6 +12,12 @@
           <div class="header-row">
             <h1>PeekCSS</h1>
             <div class="header-actions">
+            <button id="copy-all" class="toggle" title="Copy all CSS">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button id="popup-toggle" class="toggle" title="Toggle hover popup">
               <svg id="popup-icon-on" width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
@@ -43,32 +49,30 @@
         <p id="status">Click an element on the page to inspect…</p>
       </header>
       <section id="panel" hidden>
-        <button id="copy-all" class="copy-btn copy-all" title="Copy all CSS">Copy All CSS</button>
-        <div class="block">
-          <h2>Selector</h2>
-          <div class="selector">
+        <div class="selector-bar">
+          <div class="selector-tags">
             <code id="sel-tag"></code><code id="sel-id"></code><code id="sel-classes"></code>
           </div>
-          <div class="row"><span class="key">size</span><span id="dim" class="val"></span></div>
+          <span id="dim" class="dim-badge" title="Click to copy width/height"></span>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Typography</h2><button class="copy-btn copy-section" data-section="typo" title="Copy typography CSS">Copy</button></div>
+          <div class="block-header"><h2>Typography</h2><button class="icon-copy copy-section" data-section="typo" title="Copy typography CSS"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
           <div id="typo"></div>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Box</h2><button class="copy-btn copy-section" data-section="box" title="Copy box CSS">Copy</button></div>
+          <div class="block-header"><h2>Box</h2><button class="icon-copy copy-section" data-section="box" title="Copy box CSS"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
           <div id="box-model"></div><div id="box"></div>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Background</h2><button class="copy-btn copy-section" data-section="bg" title="Copy background CSS">Copy</button></div>
+          <div class="block-header"><h2>Background</h2><button class="icon-copy copy-section" data-section="bg" title="Copy background CSS"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
           <div id="bg"></div>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Layout</h2><button class="copy-btn copy-section" data-section="layout" title="Copy layout CSS">Copy</button></div>
+          <div class="block-header"><h2>Layout</h2><button class="icon-copy copy-section" data-section="layout" title="Copy layout CSS"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
           <div id="layout"></div>
         </div>
         <div class="block">
-          <div class="block-header"><h2>Effects</h2><button class="copy-btn copy-section" data-section="effects" title="Copy effects CSS">Copy</button></div>
+          <div class="block-header"><h2>Effects</h2><button class="icon-copy copy-section" data-section="effects" title="Copy effects CSS"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
           <div id="effects"></div>
         </div>
         <div class="block" id="contrast-block" hidden>
@@ -200,7 +204,7 @@
           <path d="M2.5 4 V2.5 H13.5 V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M8 2.5 V13.5 M5.5 13.5 H10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span>Type</span>
+        <span>Fonts</span>
       </button>
       <button class="nav-btn" data-view="settings" type="button">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

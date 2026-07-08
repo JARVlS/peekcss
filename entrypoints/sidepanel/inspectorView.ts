@@ -1,6 +1,11 @@
 import type { InspectionData } from '@/utils/messages';
 import { copyWithFeedback } from '@/utils/clipboard';
 
+// Small "copy" affordance shown on hover next to each value (§ Inspector
+// redesign: cue that values are clickable without adding permanent clutter).
+const COPY_HINT_ICON =
+  '<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5 V3.5 a1 1 0 0 1 1 -1 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
 // Renders the inspector view: the selector, box model, and the typography,
 // box, background, layout, effects, and contrast sections. Also owns the
 // per-section and "copy all" export buttons.
@@ -246,6 +251,11 @@ function rows(containerId: string, items: Array<[string, string, boolean?]>) {
     if (val) {
       const cssDecl = `${key}: ${val};`;
       v.addEventListener('click', () => copyWithFeedback(v, cssDecl));
+      v.title = 'Click to copy';
+      const hint = document.createElement('span');
+      hint.className = 'val-copy-hint';
+      hint.innerHTML = COPY_HINT_ICON;
+      v.append(hint);
     }
     if (isColor && val) {
       const sw = document.createElement('span');

@@ -321,54 +321,58 @@ export class OverviewView {
     el.alt = '';
     thumbWrap.append(el);
 
+    const filename = filenameForAsset(img.src, index);
+
+    const dl = document.createElement('button');
+    dl.type = 'button';
+    dl.className = 'image-dl-icon';
+    dl.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2 V10.5 M4.5 7.5 L8 11 L11.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 12.5 V13.5 a1 1 0 0 0 1 1 H12.5 a1 1 0 0 0 1 -1 V12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    thumbWrap.append(dl);
+
     const meta = document.createElement('div');
     meta.className = 'image-meta';
     meta.textContent = img.width && img.height ? `${img.width}\u00d7${img.height}` : img.kind;
 
-    const filename = filenameForAsset(img.src, index);
-
-    const dl = document.createElement('button');
-    dl.className = 'copy-btn image-dl';
-    dl.textContent = 'Download';
-    dl.title = img.src;
+    dl.title = `Download ${filename}`;
 
     let inFlight = false;
     const trigger = async (): Promise<DownloadOutcome> => {
       if (inFlight) return { ok: false, error: 'Download already in progress' };
       inFlight = true;
       dl.disabled = true;
-      dl.classList.remove('copied', 'failed');
-      dl.textContent = 'Downloading…';
+      dl.classList.remove('done', 'failed');
+      dl.classList.add('loading');
+      dl.title = `Downloading ${filename}…`;
 
       const outcome = await this.onDownloadImage(img.src, filename);
 
+      dl.classList.remove('loading');
       if (outcome.ok) {
-        dl.classList.add('copied');
-        dl.textContent = 'Downloaded \u2713';
-        dl.title = img.src;
+        dl.classList.add('done');
+        dl.title = `Downloaded ${filename}`;
       } else {
         dl.classList.add('failed');
-        dl.textContent = 'Failed';
         dl.title = `Download failed: ${outcome.error}`;
       }
 
       dl.disabled = false;
       inFlight = false;
       window.setTimeout(() => {
-        dl.classList.remove('copied', 'failed');
-        dl.textContent = 'Download';
-        dl.title = img.src;
+        dl.classList.remove('done', 'failed');
+        dl.title = `Download ${filename}`;
       }, 1800);
 
       return outcome;
     };
 
-    dl.addEventListener('click', () => {
+    dl.addEventListener('click', (e) => {
+      e.stopPropagation();
       void trigger();
     });
     this.imageTriggers.push(trigger);
 
-    card.append(thumbWrap, meta, dl);
+    card.append(thumbWrap, meta);
     return card;
   }
 
