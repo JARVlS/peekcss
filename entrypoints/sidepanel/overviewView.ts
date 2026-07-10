@@ -312,9 +312,19 @@ export class OverviewView {
   private buildImageCard(img: ImageInfo, index: number): HTMLElement {
     const card = document.createElement('div');
     card.className = 'image-card';
+    // Landscape images get a full-width row; portrait/square/unknown sit two-up.
+    if (img.width > img.height) card.classList.add('landscape');
 
     const thumbWrap = document.createElement('div');
     thumbWrap.className = 'image-thumb';
+    // Shape the container to the image's own aspect ratio and cap it to the
+    // natural width so small images sit at 1:1 rather than being upscaled.
+    if (img.width > 0 && img.height > 0) {
+      thumbWrap.style.aspectRatio = `${img.width} / ${img.height}`;
+      thumbWrap.style.maxWidth = `${img.width}px`;
+    } else {
+      thumbWrap.classList.add('no-ratio');
+    }
     const el = document.createElement('img');
     el.loading = 'lazy';
     el.src = img.thumb;

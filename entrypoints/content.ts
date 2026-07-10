@@ -652,7 +652,7 @@ function scanImages(): ImageInfo[] {
     seen.add(src);
     out.push({
       src,
-      thumb: makeThumb(img) ?? src,
+      thumb: thumbFor(img, src),
       width: img.naturalWidth,
       height: img.naturalHeight,
       kind: 'img',
@@ -686,9 +686,22 @@ function scanImages(): ImageInfo[] {
   return out;
 }
 
+// Preview source for an <img>. http(s)/data URLs load directly in the panel
+// at full native quality and near-zero cost — the browser already cached them
+// while rendering the page, and the grid lazy-loads them so only on-screen
+// previews ever fetch. blob:/filesystem URLs are scoped to the page document
+// and won't resolve in the panel, so those fall back to a self-contained
+// canvas thumbnail (which, being a re-encode, is capped at HD).
+function thumbFor(img: HTMLImageElement, src: string): string {
+  if (/^(https?:|data:)/i.test(src)) return src;
+  return makeThumb(img) ?? src;
+}
+
 function makeThumb(img: HTMLImageElement): string | null {
   try {
-    const max = 96;
+    // Full native resolution up to an HD ceiling on the longest side: crisp
+    // previews without ballooning the inlined data-URL message payload.
+    const max = 1280;
     const w = img.naturalWidth;
     const h = img.naturalHeight;
     const scale = Math.min(1, max / Math.max(w, h));

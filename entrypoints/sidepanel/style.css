@@ -41,7 +41,7 @@
    320px min-width forced horizontal scrolling on narrower launches). */
 html,
 body {
-  min-width: 240px;
+  min-width: 180px;
   overflow-x: hidden;
 }
 
@@ -110,6 +110,21 @@ header h1 {
   gap: 6px;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+/* Below this width the title + mode buttons can no longer share a line
+   without crowding (and, on very thin launches, being clipped against the
+   panel edge). Drop the buttons onto their own row under the title and pin
+   them to the left so they stay inside the visible area at any width. */
+@media (max-width: 260px) {
+  .header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 
 .toggle {
@@ -655,15 +670,18 @@ kbd {
   color: #6ee7a0;
 }
 
-/* Overview: images — a wider min track (160px) means one full-width column
-   at the panel's default/narrow widths, only splitting into more (larger)
-   columns once the panel is resized wider. min(160px, 100%) stops the
-   track from ever exceeding the container itself, so a very narrow panel
-   still can't force horizontal overflow. */
+/* Overview: images — a fixed two-column grid that always fills the block's
+   full width (small gap only) so previews stay as large as possible.
+   Landscape images span both columns (one per row); portrait and square
+   images sit two-up. Orientation is tagged on the card in overviewView. */
 .images-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.image-card.landscape {
+  grid-column: 1 / -1;
 }
 
 .image-card {
@@ -682,9 +700,18 @@ kbd {
   border-color: var(--muted);
 }
 
+/* The thumb hugs the image's own aspect ratio (set inline per card from the
+   intrinsic width/height) so there's no forced square letterbox — landscape
+   thumbs come out wide/short, portraits tall/narrow. width:100% lets it grow
+   to fill its grid column, but max-width is pinned to the image's natural
+   width (also inline) so a small image renders at 1:1 instead of being blown
+   up; the column only ever displays it smaller than natural, never larger.
+   max-height caps pathologically tall aspect ratios. */
 .image-thumb {
   position: relative;
-  height: 132px;
+  width: 100%;
+  margin-inline: auto;
+  max-height: 340px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -699,9 +726,12 @@ kbd {
   background-position: 0 0, 0 5px, 5px -5px, -5px 0;
 }
 
-/* Fill the available box (scaling small images up, not just capping large
-   ones down) while keeping the full image visible — object-fit: contain
-   still letterboxes rather than cropping. */
+/* Background images / images with unknown intrinsic size can't drive an
+   aspect ratio, so they fall back to a fixed preview height. */
+.image-thumb.no-ratio {
+  height: 150px;
+}
+
 .image-thumb img {
   width: 100%;
   height: 100%;
