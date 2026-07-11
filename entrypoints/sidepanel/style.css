@@ -1101,7 +1101,7 @@ kbd {
   white-space: nowrap;
 }
 /* §7 tier gating */
-.view.is-locked > :not(.locked-panel):not(.dev-block) {
+.view.is-locked > :not(.locked-panel):not(.dev-block):not(.account-block) {
   display: none;
 }
 
@@ -1192,9 +1192,17 @@ kbd {
   opacity: 0.55;
 }
 
-.segmented button.locked::after {
-  content: ' \1F512';
-  font-size: 8px;
+/* Pro-only controls show a golden crown — distinct from the tab lock, which
+   disappears once you have a free account. The crown means "needs Pro". */
+.segmented button.locked::after,
+.copy-btn.locked::after {
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 5px;
+  vertical-align: -1px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23E8B923' d='M4 18 L2 7 L8 11 L12 5 L16 11 L22 7 L20 18 Z'/%3E%3Cpath fill='%23E8B923' d='M4 19 h16 v1.6 a0.6 0.6 0 0 1 -0.6 0.6 H4.6 a0.6 0.6 0 0 1 -0.6 -0.6 Z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
 .palette-group-title {
