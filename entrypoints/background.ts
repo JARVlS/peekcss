@@ -1,5 +1,6 @@
 // entrypoints/background.ts
 import type { DownloadRequest, DownloadResult } from '@/utils/messages';
+import { revalidateLicense } from '@/utils/license';
 
 // sidebarAction is Firefox-only, so it is absent from WXT's cross-browser
 // browser type. Typed here as optional rather than cast at the call site.
@@ -8,6 +9,11 @@ const firefoxBrowser = browser as typeof browser & {
 };
 
 export default defineBackground(() => {
+  // Re-check the stored license on install and on browser startup so a
+  // revoked/upgraded plan is reflected even if the panel isn't opened.
+  browser.runtime.onInstalled.addListener(() => void revalidateLicense());
+  browser.runtime.onStartup.addListener(() => void revalidateLicense());
+
   // Toolbar icon click → toggle sidebar.
   // Chrome branch (sidePanel API) goes here when we port to Chrome.
   browser.action.onClicked.addListener(() => {

@@ -20,6 +20,8 @@ import { InspectorView } from './inspectorView';
 import { OverviewView } from './overviewView';
 import { TypographyView } from './typographyView';
 import { GatingController } from './gating';
+import { AccountController } from './accountView';
+import { revalidateLicense } from '@/utils/license';
 
 const toggleBtn = document.getElementById('toggle')!;
 const iconOn = document.getElementById('toggle-icon-on')!;
@@ -170,6 +172,12 @@ void initUserTier((tier) => {
   overviewView.setProEnabled(hasTier('pro'));
   typographyView.setProEnabled(hasTier('pro'));
 });
+
+// License: re-validate the stored token whenever the panel opens (offline-safe),
+// and wire the Account block in Settings. Writing accountState updates the tier
+// via the watchers in initUserTier(), so gating refreshes automatically.
+void revalidateLicense();
+void new AccountController().init();
 
 function setInspectorActive(value: boolean) {
   inspectorActive = value;
