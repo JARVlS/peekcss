@@ -14,5 +14,4 @@ export default defineConfig({
     ...(browser === 'firefox'
       ? { host_permissions: ['https://fonts.google.com/*'] }
       : { optional_host_permissions: ['https://fonts.google.com/*'] }),
-  }),
-});
+    // Fir
