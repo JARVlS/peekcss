@@ -83,4 +83,61 @@ function apiTierToUserTier(tier: string | undefined): UserTier {
 // ensureAuthDataConsent above).
 export async function validateLicense(
   token: string,
-  prompt
+  promptForConsent = false,
+): Promise<LicenseResult> {
+  if (!(await ensureAuthDataConsent(promptForConsent))) {
+    return {
+      ok: false,
+      consentMissing: true,
+      error: 'License checks need the data-sharing permission — try applying the license again.',
+    };
+  }
+  try {
+    const res = await fetch(VALIDATE_URL, { method: 'POST', body: JSON.stringify({ token }) });
+    if (!res.ok) {
+      if (res.status === 429) return { ok: false, error: 'Too many checks — try again shortly.' };
+      return { ok: false, error: `Server error (${res.status}).` };
+    }
+    const data = (await res.json()) as ValidateResponse;
+    if (!data.valid) return { ok: false, error: 'This license is not valid or has been revoked.' };
+    return { ok: true, tier: apiTierToUserTier(data.tier) };
+  } catch {
+    return { ok: false, offline: true, error: 'Could not reach the licensing server.' };
+  }
+}
+
+// Validate a freshly pasted token; if valid, persist it and update the tier.
+export async function applyLicenseToken(token: string): Promise<LicenseResult> {
+  const trimmed = token.trim();
+  if (!trimmed) {
+    await clearLicense();
+    return { ok: true, tier: 'anonymous' };
+  }
+  const res = await validateLicense(trimmed, true);
+  if (!res.ok) return res;
+  await licenseTokenItem.setValue(trimmed);
+  await licenseCheckedAtItem.setValue(Date.now());
+  await accountStateItem.setValue({ tier: res.tier! });
+  return res;
+}
+
+export async function clearLicense(): Promise<void> {
+  await licenseTokenItem.setValue(null);
+  await licenseCheckedAtItem.setValue(0);
+  await accountStateItem.setValue(null);
+}
+
+// Re-check the stored token (on startup / when the panel opens). Offline-safe:
+// a network failure keeps the last known tier; only an explicit "invalid"
+// answer downgrades the account (handles revocation / cancellation).
+export async function revalidateLicense(): Promise<void> {
+  const token = await licenseTokenItem.getValue();
+  if (!token) return;
+  const res = await validateLicense(token);
+  if (res.ok) {
+    await licenseCheckedAtItem.setValue(Date.now());
+    await accountStateItem.setValue({ tier: res.tier! });
+  } else if (!res.offline && !res.consentMissing) {
+    await clearLicense();
+  }
+}
