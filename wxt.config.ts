@@ -27,6 +27,8 @@ export default defineConfig({
       ? {
           browser_specific_settings: {
             gecko: {
+              // Permanent once first published — AMO locks this in on signing.
+              id: 'peekcss@peekcss.com',
               data_collection_permissions: {
                 required: ['none'],
                 optional: ['authenticationInfo'],
