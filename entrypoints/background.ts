@@ -14,11 +14,17 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => void revalidateLicense());
   browser.runtime.onStartup.addListener(() => void revalidateLicense());
 
-  // Toolbar icon click → toggle sidebar.
-  // Chrome branch (sidePanel API) goes here when we port to Chrome.
-  browser.action.onClicked.addListener(() => {
-    firefoxBrowser.sidebarAction?.toggle();
-  });
+  // Toolbar icon click → open the side panel.
+  // Chrome's sidePanel API opens on click via setPanelBehavior instead of an
+  // onClicked listener; Firefox has no such behavior flag, so it keeps using
+  // sidebarAction.toggle() from the click event.
+  if (browser.sidePanel) {
+    void browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  } else {
+    browser.action.onClicked.addListener(() => {
+      firefoxBrowser.sidebarAction?.toggle();
+    });
+  }
 
   // http(s) image downloads are routed here so they use the privileged
   // downloads API, which fetches with the browser's own credentials and

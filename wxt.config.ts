@@ -1,12 +1,22 @@
 import { defineConfig } from 'wxt';
 
+const faviconSvg = '/icon/favicon.svg';
+const firefoxIcons = {
+  16: faviconSvg,
+  32: faviconSvg,
+  48: faviconSvg,
+  96: faviconSvg,
+  128: faviconSvg,
+} as const;
+
 export default defineConfig({
   manifestVersion: 3, // force MV3 on BOTH browsers
   manifest: ({ browser }) => ({
     name: 'PeekCSS',
     description: 'Inspect CSS, colors, fonts, and assets on any webpage.',
+    ...(browser === 'firefox' ? { icons: firefoxIcons } : {}),
     permissions: ['storage', 'activeTab', 'downloads'],
-    action: {},
+    ...(browser === 'firefox' ? { action: { default_icon: faviconSvg } } : { action: {} }),
     // Font pairing downloads Google Fonts' public catalog on demand (no page
     // data is sent). Requested at runtime, so install prompts stay unchanged:
     // Firefox MV3 treats host_permissions as optional + runtime-requestable;
