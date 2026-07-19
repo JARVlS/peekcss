@@ -82,6 +82,7 @@ Developer reference for all implemented features: what they do, which tier gates
 | Feature | Tier | Description |
 | --- | --- | --- |
 | Font list | Free account | All font families rendered on the page (up to 40), sorted by usage count |
+| Live font preview | Free account | Each family's name is shown set in that very font — the content script pre-renders the label using the page's own loaded font, so it works for any font on the page (including proprietary/webfonts), not just ones installed locally |
 | Usage count | Free account | Number of elements using each family |
 | Weights & sizes | Free account | Distinct computed font-weights and font-sizes per family; sizes respect the app-wide font-unit setting |
 | Role chips | Free account | Per-family breakdown: how many elements fall under Headings / Body / UI / Other |

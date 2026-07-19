@@ -1249,6 +1249,16 @@ kbd {
   white-space: nowrap;
 }
 
+/* Label pre-rendered in its own font (as a mask so it follows the theme). */
+.font-card-name--img {
+  width: var(--name-w);
+  height: var(--name-h);
+  max-width: 100%;
+  background-color: var(--text);
+  -webkit-mask: var(--name-mask) left center / contain no-repeat;
+  mask: var(--name-mask) left center / contain no-repeat;
+}
+
 .font-card-meta {
   font-size: 11px;
   color: var(--muted);

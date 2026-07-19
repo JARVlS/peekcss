@@ -101,9 +101,20 @@ export class TypographyView {
 
     const name = document.createElement('div');
     name.className = 'font-card-name';
-    name.textContent = font.family;
-    name.style.fontFamily = `"${font.family}", sans-serif`;
     name.title = `Used by ${font.count} element${font.count === 1 ? '' : 's'}`;
+    if (font.nameImage) {
+      // The page's web fonts aren't loaded in this document, so the content
+      // script pre-rendered the label in its real font. Show it as a tintable
+      // mask and keep the plain name available for screen readers / copy.
+      name.classList.add('font-card-name--img');
+      name.setAttribute('aria-label', font.family);
+      name.style.setProperty('--name-mask', `url("${font.nameImage.data}")`);
+      name.style.setProperty('--name-w', `${font.nameImage.width}px`);
+      name.style.setProperty('--name-h', `${font.nameImage.height}px`);
+    } else {
+      name.textContent = font.family;
+      name.style.fontFamily = `"${font.family}", sans-serif`;
+    }
 
     const meta = document.createElement('div');
     meta.className = 'font-card-meta';
