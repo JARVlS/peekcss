@@ -15,7 +15,7 @@ import { hasTier, initUserTier } from '@/utils/tier';
 import { colorFormatItem, fontUnitItem } from '@/utils/storage';
 import { FONT_UNITS, formatFontLength, type FontUnit } from '@/utils/fontUnit';
 import { ThemeController } from './theme';
-import { NavigationController } from './navigation';
+import { NavigationController, type ViewName } from './navigation';
 import { InspectorView } from './inspectorView';
 import { OverviewView } from './overviewView';
 import { TypographyView } from './typographyView';
@@ -38,6 +38,7 @@ let inspectorActive = true;
 let popupEnabled = false;
 let colorFormat: ColorFormat = 'hex';
 let fontUnit: FontUnit = 'px';
+let currentView: ViewName = 'inspector';
 
 const fmtColor = (c: string) => formatColor(c, colorFormat);
 const fmtLength = (v: string, rootPx: number) => formatFontLength(v, fontUnit, rootPx);
@@ -150,6 +151,8 @@ const inspectorView = new InspectorView(fmtColor, fmtLength);
 const overviewView = new OverviewView(fmtColor, downloadAsset, downloadBlobAsset);
 const typographyView = new TypographyView();
 const nav = new NavigationController((view) => {
+  currentView = view;
+  syncInspectorState();
   if (view === 'overview') requestOverview();
   else if (view === 'typography') requestTypography();
 });
@@ -184,10 +187,16 @@ function setInspectorActive(value: boolean) {
   toggleBtn.classList.toggle('active', inspectorActive);
   iconOn.style.display = inspectorActive ? '' : 'none';
   iconOff.style.display = inspectorActive ? 'none' : '';
-  if (port) {
-    const msg: SidepanelMessage = { kind: 'set-active', active: inspectorActive };
-    port.postMessage(msg);
-  }
+  syncInspectorState();
+}
+
+function syncInspectorState() {
+  if (!port) return;
+  const msg: SidepanelMessage = {
+    kind: 'set-active',
+    active: inspectorActive && currentView === 'inspector',
+  };
+  port.postMessage(msg);
 }
 
 function setPopupEnabled(value: boolean) {
@@ -318,10 +327,7 @@ async function connect() {
     port = undefined;
   });
 
-  if (!inspectorActive) {
-    const msg: SidepanelMessage = { kind: 'set-active', active: false };
-    port.postMessage(msg);
-  }
+  syncInspectorState();
   if (popupEnabled) {
     const msg: SidepanelMessage = { kind: 'set-popup', enabled: true };
     port.postMessage(msg);
