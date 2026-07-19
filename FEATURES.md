@@ -58,13 +58,14 @@ Developer reference for all implemented features: what they do, which tier gates
 | Per-purpose tallies | Free account | Each palette entry shows how often it appears as a text / background / border color |
 | Palette grouping | **Pro** | Segmented "All / By purpose" toggle; groups palette swatches by dominant purpose |
 | Palette export | **Pro** | Select exports to clipboard: CSS custom properties, SCSS variables, JSON object, Tailwind `colors` config |
-| Image grid | Free account | All `<img>` tags and CSS `background-image` URLs, with a thumbnail and metadata |
+| Image grid | Free account | All `<img>` tags and CSS `background-image` URLs, with a preview thumbnail and metadata; landscape images span a full-width row, portrait/square/unknown sit two-up |
+| Full-resolution previews | Free account | http(s)/data URLs load directly in the panel (already cached by the page render, lazy-loaded in the grid); blob:/filesystem URLs — scoped to the page document and unreachable from the panel — fall back to a canvas re-encode capped at an HD ceiling (1280px longest side) |
 | Single-image download | Free account | Per-image download button; http(s) via `downloads` API, data:/blob: via sidebar object URL |
 | Download all (ZIP) | **Pro** | Bundles readable images with fflate (`~13 kB` tree-shaken, level-0 compression for already-compressed formats); cross-origin images that can't be fetched from the sidebar fall back to sequential `downloads` API calls; no extra install-time permissions |
 
 ### Key files
 
-- `entrypoints/content.ts` — `scanOverview`, `scanImages`
+- `entrypoints/content.ts` — `scanOverview`, `scanImages`, `thumbFor`, `makeThumb`
 - `entrypoints/sidepanel/overviewView.ts` — rendering, palette controls, ZIP download
 - `utils/palette.ts` — `dominantPurpose`, `exportPalette`
 - `utils/zipExport.ts` — `buildZip`, `fetchImageBytes`
@@ -118,13 +119,26 @@ Developer reference for all implemented features: what they do, which tier gates
 | Theme | Light / dark toggle, persisted to `storage.local` |
 | Color format | HEX / RGB / HSL; applied to inspector property values and hover popup |
 | Font unit | px / rem / pt; applied to all length values across inspector, popup, and Typography tab |
+| Account & licensing | Paste a license token from a peekcss.com account to unlock free_account / Pro — see below |
 | Keyboard shortcuts | Reference table: Q cycle tabs, W inspector on/off, E popup on/off, N theme |
 | Dev tier override | (DEV builds only) Dropdown to switch between anonymous / free_account / pro without a backend — useful for testing all gating states |
+
+### Account & licensing — no login, one pasted token
+
+The extension never signs in. peekcss.com issues a long-lived license token per account (free accounts get one too); the user pastes it into Settings → Account once.
+
+1. **Apply.** `applyLicenseToken` validates the token with a stateless `POST` to `peekcss.com/api/license/validate` — a "simple" CORS request (no custom headers, so no preflight, no host permission needed). On success the token is persisted (`local:licenseToken`) and the resolved tier is written to `accountStateItem`; the existing tier watchers (`utils/tier.ts`) pick that up and refresh gating everywhere automatically. `Remove` clears both.
+2. **Revalidate.** The stored token is re-checked on extension install, browser startup (`entrypoints/background.ts`), and panel open. Offline-safe: a network error keeps the last known tier; only an explicit invalid/revoked response downgrades the account.
+3. **Firefox data-collection consent.** Firefox requires new extensions to declare what personal data they collect (`data_collection_permissions` in `wxt.config.ts`). The license token is the only thing PeekCSS ever transmits, declared as *optional* `authenticationInfo` data collection — never required, since anonymous/free-tier use never triggers it. The actual network call is gated behind a runtime `browser.permissions.request()`, triggered only from the "Apply license" click (a user gesture, which Firefox requires for this prompt) — the same pattern as the Google Fonts host permission. Chrome and pre-140 Firefox don't recognize this permission shape and fail open.
+4. **Stays reachable when locked.** The Account block remains visible and interactive even when the Settings tab itself is shown locked (anonymous users), so pasting a license is how you unlock the tab in the first place — see the CSS exception in Tier gating below.
+5. Ultimate folds into Pro for now (Ultimate/AI features haven't shipped).
 
 ### Key files
 
 - `entrypoints/sidepanel/main.ts` — settings wiring
 - `entrypoints/sidepanel/theme.ts` — theme controller
+- `entrypoints/sidepanel/accountView.ts` — `AccountController` (license input, apply/remove, status)
+- `utils/license.ts` — `applyLicenseToken`, `clearLicense`, `revalidateLicense`, `validateLicense`
 - `utils/storage.ts` — `themeItem`, `colorFormatItem`, `fontUnitItem`
 
 ---
@@ -141,15 +155,18 @@ hasTier(required): boolean  // true if current tier ≥ required
 initUserTier(onChange)      // loads from storage, sets up watcher
 ```
 
-**UX rule:** locked views and locked in-view features are shown *disabled with a lock icon + tier hint* — never hidden. Users can see what they're missing and why.
+**UX rule:** locked views and locked in-view features are shown *disabled with a lock icon + tier hint* — never hidden. Users can see what they're missing and why. Exception: the Settings Account block (`.account-block`) stays visible and interactive even inside an otherwise-locked view, since applying a license there is how an anonymous user unlocks the tab.
 
-**Nav lock badges:** each locked tab in the bottom nav shows a small lock icon overlay.
+**Nav lock badges:** each locked tab in the bottom nav shows a small lock icon overlay. Pro-only *in-view* controls (e.g. the palette "By purpose" toggle, locked export/copy buttons) instead show a small gold crown — visually distinct from the tab-level lock, since a Pro-gated control can sit inside a tab that's already unlocked at free_account.
 
-**Dev override:** in DEV builds, a "Dev tier" selector appears at the bottom of Settings. It writes to the `devTierOverride` storage key; the gating watcher picks it up immediately without a reload.
+**Tier resolution order:** `devTierOverride` (dev builds only) → `accountStateItem` (tier resolved from a validated license, see Account & licensing above) → `'anonymous'`.
+
+**Dev override:** in DEV builds, a "Dev tier" selector appears at the bottom of Settings. It writes to the `devTierOverride` storage key; the gating watcher picks it up immediately without a reload. It takes priority over any applied license so all three tiers stay testable without a backend.
 
 ### Key files
 
-- `utils/tier.ts` — full gating interface
+- `utils/tier.ts` — full gating interface, `accountStateItem`, `devTierOverrideItem`
+- `utils/license.ts` — resolves `accountStateItem` from a pasted license token
 - `entrypoints/sidepanel/gating.ts` — `GatingController` (locked panels, nav badges, dev selector)
 
 ---
@@ -182,6 +199,19 @@ The content script and sidebar communicate over one long-lived port per tab (`IN
 ### Key file
 
 - `utils/messages.ts` — all types
+
+---
+
+## Toolbar behavior
+
+| Browser | Click on toolbar icon |
+| --- | --- |
+| Chrome (has `sidePanel`) | Opens automatically — `sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` is set once in the background script |
+| Firefox (no `sidePanel`) | `browser.action.onClicked` toggles `sidebarAction` |
+
+### Key file
+
+- `entrypoints/background.ts`
 
 ---
 
