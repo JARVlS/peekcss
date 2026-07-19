@@ -248,7 +248,7 @@ void fontUnitItem.getValue().then((stored) => {
   applyFontUnit(FONT_UNITS.includes(stored) ? stored : 'px');
 });
 
-// Keyboard shortcuts (q=cycle tabs, w=inspector, e=hover popup, n=theme)
+// Keyboard shortcuts (Alt+Q cycle tabs, Alt+W inspector, Alt+A hover popup, Alt+N theme)
 function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab') {
   // Theme lives in Settings, which is gated behind a free account (§7).
   if (action === 'toggle-theme') {
@@ -259,7 +259,7 @@ function handleShortcut(action: 'toggle-theme' | 'toggle-inspector' | 'toggle-po
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!e.altKey || e.ctrlKey || e.metaKey) return;
   const t = e.target as HTMLElement | null;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
     return;
@@ -271,7 +271,7 @@ window.addEventListener('keydown', (e) => {
     case 'w':
       handleShortcut('toggle-inspector');
       break;
-    case 'e':
+    case 'a':
       handleShortcut('toggle-popup');
       break;
     case 'n':

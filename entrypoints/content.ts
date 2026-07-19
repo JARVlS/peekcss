@@ -112,7 +112,7 @@ export default defineContentScript({
       };
 
       const onKeyDown = (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!e.altKey || e.ctrlKey || e.metaKey) return;
         if (isEditable(e.target)) return;
         let action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab' | null = null;
         switch (e.key.toLowerCase()) {
@@ -125,7 +125,7 @@ export default defineContentScript({
           case 'w':
             action = 'toggle-inspector';
             break;
-          case 'e':
+          case 'a':
             action = 'toggle-popup';
             break;
         }
