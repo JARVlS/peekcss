@@ -21,9 +21,25 @@ export default defineConfig({
     // data is sent). Requested at runtime, so install prompts stay unchanged:
     // Firefox MV3 treats host_permissions as optional + runtime-requestable;
     // Chrome needs optional_host_permissions for the same behavior.
+    //
+    // Chrome/Edge also need an explicit host_permissions grant for <all_urls>
+    // here. content_scripts.matches already injects the content script
+    // everywhere, but per Chrome's docs that alone does not reliably expose
+    // tabs.Tab.url to chrome.tabs.query() — only "tabs" or host_permissions
+    // do. Without this, the side panel's tab.url check in main.ts comes back
+    // undefined on tabs where activeTab wasn't just (re-)granted (e.g. after
+    // switching tabs or navigating), and the sidebar shows "Can't inspect
+    // this page" even on ordinary http(s) pages. This adds no new capability
+    // beyond what content_scripts.matches already grants, just makes it
+    // explicit so tab.url resolves reliably. WXT's dev builds already add
+    // this (plus "tabs"/"scripting") automatically, which is why this only
+    // showed up in the shipped production build, not local testing.
     ...(browser === 'firefox'
       ? { host_permissions: ['https://fonts.google.com/*'] }
-      : { optional_host_permissions: ['https://fonts.google.com/*'] }),
+      : {
+          host_permissions: ['<all_urls>'],
+          optional_host_permissions: ['https://fonts.google.com/*'],
+        }),
     // Firefox requires new extensions (from Nov 3, 2025) to declare what
     // personal data they collect/transmit. PeekCSS never sends page data or
     // CSS anywhere; the only thing that ever leaves the browser is the
