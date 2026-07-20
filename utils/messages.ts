@@ -124,6 +124,12 @@ export interface FontUsage {
   roles: Record<FontRole, number>;
   sizes: number[]; // distinct computed px sizes, ascending
   weights: number[]; // distinct font weights, ascending
+  // The family name pre-rendered in its own font by the content script (where
+  // the page's web fonts are actually loaded — the sidepanel can't see them).
+  // A transparent PNG of the glyphs, used as a mask so the panel can tint it to
+  // the current theme. Absent when the font isn't genuinely available (e.g. the
+  // stack fell back), so we never fake a mislabeled preview.
+  nameImage?: { data: string; width: number; height: number };
 }
 
 export interface TypographyData {

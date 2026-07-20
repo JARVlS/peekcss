@@ -112,7 +112,7 @@ export default defineContentScript({
       };
 
       const onKeyDown = (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!e.altKey || e.ctrlKey || e.metaKey) return;
         if (isEditable(e.target)) return;
         let action: 'toggle-theme' | 'toggle-inspector' | 'toggle-popup' | 'cycle-tab' | null = null;
         switch (e.key.toLowerCase()) {
@@ -125,7 +125,7 @@ export default defineContentScript({
           case 'w':
             action = 'toggle-inspector';
             break;
-          case 'e':
+          case 'a':
             action = 'toggle-popup';
             break;
         }
@@ -172,8 +172,10 @@ export default defineContentScript({
           const overview: InspectorMessage = { kind: 'overview', data: scanOverview() };
           port.postMessage(overview);
         } else if (msg.kind === 'scan-typography') {
-          const typography: InspectorMessage = { kind: 'typography', data: scanTypography() };
-          port.postMessage(typography);
+          void scanTypography().then((data) => {
+            const typography: InspectorMessage = { kind: 'typography', data };
+            port.postMessage(typography);
+          });
         } else if (msg.kind === 'set-color-format') {
           colorFormat = msg.format;
           if (popupEnabled && active && hovered) showPopupFor(hovered);
@@ -585,7 +587,80 @@ function fontRoleFor(el: Element): FontRole {
   return 'other';
 }
 
-function scanTypography(): TypographyData {
+// Display size of the family label in the Typography tab (matches
+// .font-card-name font-size). Rendered at a higher scale for crispness on
+// HiDPI panels, then reported back in logical px.
+const NAME_CAP_PX = 15;
+const NAME_RENDER_SCALE = 3;
+
+// True when `family` is genuinely available in this document. getComputedStyle
+// reports the *specified* family, not what actually rendered, so a stack like
+// "Ubuntu, sans-serif" reads as "Ubuntu" even when Ubuntu never loaded. We
+// compare the family's metrics against each generic fallback: an absent font
+// collapses onto its fallback and matches all three, a real one won't.
+function fontIsAvailable(family: string): boolean {
+  const sample = 'mmmmmmmmmmlliWwGg08';
+  const size = '72px';
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx) return false;
+  for (const generic of ['monospace', 'serif', 'sans-serif']) {
+    ctx.font = `${size} ${generic}`;
+    const base = ctx.measureText(sample).width;
+    ctx.font = `${size} "${cssFamily(family)}", ${generic}`;
+    if (Math.abs(ctx.measureText(sample).width - base) > 0.5) return true;
+  }
+  return false;
+}
+
+// Escape a family name for safe embedding inside a quoted CSS font string.
+function cssFamily(family: string): string {
+  return family.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// Render the family name in its own font to a transparent PNG (black glyphs,
+// used as a mask on the panel side). Returns null when the font isn't actually
+// present so the panel falls back to plain text.
+async function renderFontName(
+  family: string,
+): Promise<{ data: string; width: number; height: number } | null> {
+  try {
+    await document.fonts.load(`600 ${NAME_CAP_PX}px "${cssFamily(family)}"`);
+  } catch {
+    // Best effort — the page already rendered this font, so it should be ready.
+  }
+  if (!fontIsAvailable(family)) return null;
+
+  const scale = NAME_RENDER_SCALE;
+  const px = NAME_CAP_PX * scale;
+  const font = `600 ${px}px "${cssFamily(family)}", sans-serif`;
+  const measurer = document.createElement('canvas').getContext('2d');
+  if (!measurer) return null;
+  measurer.font = font;
+  const m = measurer.measureText(family);
+  const ascent = m.actualBoundingBoxAscent || px * 0.8;
+  const descent = m.actualBoundingBoxDescent || px * 0.2;
+  const pad = Math.ceil(px * 0.12);
+  const w = Math.max(1, Math.ceil(m.width) + pad * 2);
+  const h = Math.max(1, Math.ceil(ascent + descent) + pad * 2);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.font = font;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#000';
+  ctx.fillText(family, pad, pad + ascent);
+
+  try {
+    return { data: canvas.toDataURL('image/png'), width: w / scale, height: h / scale };
+  } catch {
+    return null;
+  }
+}
+
+async function scanTypography(): Promise<TypographyData> {
   type Agg = {
     count: number;
     roles: Record<FontRole, number>;
@@ -636,6 +711,14 @@ function scanTypography(): TypographyData {
       sizes: [...agg.sizes].sort((a, b) => a - b),
       weights: [...agg.weights].sort((a, b) => a - b),
     }));
+
+  // Render each label in its own font here, where the page's web fonts live.
+  await Promise.all(
+    fonts.map(async (font) => {
+      const nameImage = await renderFontName(font.family);
+      if (nameImage) font.nameImage = nameImage;
+    }),
+  );
 
   const rootFontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
   return { fonts, rootFontSize };
