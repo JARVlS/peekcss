@@ -1101,7 +1101,10 @@ kbd {
   white-space: nowrap;
 }
 /* §7 tier gating */
-.view.is-locked > :not(.locked-panel):not(.dev-block):not(.account-block) {
+/* The account block stays visible on a locked view so users can paste a
+   license, and the support block stays visible so anonymous users can still
+   back the project — neither is gated. */
+.view.is-locked > :not(.locked-panel):not(.dev-block):not(.account-block):not(.support-block) {
   display: none;
 }
 
