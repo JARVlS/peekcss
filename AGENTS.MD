@@ -1,0 +1,1 @@
+Always update the version number in package.json when making changes to the codebase that seem significant enough to warrant a new version. This helps in tracking changes and ensuring that users are aware of updates.
