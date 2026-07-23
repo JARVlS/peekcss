@@ -1369,3 +1369,28 @@ kbd {
 .account-btn--primary:hover { background: var(--accent-strong, #574af0); }
 .account-hint { font-size: 11px; color: var(--text-muted, #8a8fa3); margin: 0; line-height: 1.5; }
 .account-hint a { color: var(--accent, #6d5efc); }
+
+/* ---- Support block (Settings) ---- */
+.support-intro { font-size: 11px; color: var(--text-muted, #8a8fa3); margin: 0 0 10px; line-height: 1.5; }
+.support-actions { display: flex; gap: 8px; }
+.support-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #333846);
+  background: transparent;
+  color: var(--text, #f2f3f7);
+  text-decoration: none;
+  cursor: pointer;
+}
+.support-btn:hover { background: var(--bg-subtle, rgba(255,255,255,0.04)); border-color: var(--border-strong, #454b5c); }
+.support-btn__icon { flex-shrink: 0; }
+@media (max-width: 300px) {
+  .support-actions { flex-direction: column; }
+}
